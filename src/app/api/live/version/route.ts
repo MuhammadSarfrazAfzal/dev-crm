@@ -28,8 +28,9 @@ export async function GET() {
       { headers: { "cache-control": "no-store, no-cache, must-revalidate, proxy-revalidate" } }
     );
   } catch (err) {
+    // Return last known or 0 on error, never Date.now(), to prevent infinite router.refresh loops
     return NextResponse.json(
-      { v: Date.now() },
+      { v: 0 },
       { headers: { "cache-control": "no-store" } }
     );
   }

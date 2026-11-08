@@ -76,7 +76,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         const res = await fetch("/api/live/version", { cache: "no-store" });
         if (!res.ok) return;
         const data = await res.json();
-        if (typeof data.v === "number") {
+        if (typeof data.v === "number" && data.v > 0) {
           if (lastVersion.current > 0 && data.v > lastVersion.current) {
             changed();
           }

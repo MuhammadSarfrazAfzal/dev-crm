@@ -11,9 +11,11 @@ export type Tx = postgres.TransactionSql;
 
 const FALLBACK_IPS: Record<string, string> = {
   "aws-0-ap-southeast-2.pooler.supabase.com": "13.237.241.81",
+  "db.mmjwktjibkeuiiqoghhi.supabase.co": "2406:da14:311:1500:f91e:b388:ac48:da3",
 };
 
 async function resolveHost(hostname: string, family: 4 | 6, retries = 2): Promise<string> {
+  if (FALLBACK_IPS[hostname]) return FALLBACK_IPS[hostname];
   for (let i = 0; i < retries; i++) {
     try {
       const res = await dns.promises.lookup(hostname, { family });

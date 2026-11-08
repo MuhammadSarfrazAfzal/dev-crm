@@ -11,6 +11,7 @@ export type Tx = postgres.TransactionSql;
 
 const FALLBACK_IPS: Record<string, string> = {
   "aws-0-ap-southeast-2.pooler.supabase.com": "13.237.241.81",
+  "aws-0-ap-northeast-1.pooler.supabase.com": "35.79.125.133",
   "db.mmjwktjibkeuiiqoghhi.supabase.co": "2406:da14:311:1500:f91e:b388:ac48:da3",
 };
 

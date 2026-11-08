@@ -1,0 +1,279 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. Every colour used by the app is a CSS variable defined once for light
+ * and once for dark, then exposed to Tailwind as a semantic colour (bg-surface,
+ * text-muted, border-line, bg-success-soft…). Pages never use raw palette colours, so
+ * both themes stay consistent.
+ */
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-2: var(--fg-2);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-ink: var(--ink);
+  --color-on-ink: var(--on-ink);
+
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-line: var(--brand-line);
+  --color-brand-fg: var(--brand-fg);
+  --color-on-brand: #ffffff;
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-line: var(--success-line);
+  --color-success-fg: var(--success-fg);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-line: var(--warning-line);
+  --color-warning-fg: var(--warning-fg);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-line: var(--danger-line);
+  --color-danger-fg: var(--danger-fg);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-info-line: var(--info-line);
+  --color-info-fg: var(--info-fg);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-line: var(--accent-line);
+  --color-accent-fg: var(--accent-fg);
+
+  --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.04);
+  --shadow-pop: 0 10px 30px -10px rgb(15 23 42 / 0.25), 0 4px 10px -6px rgb(15 23 42 / 0.12);
+}
+
+:root {
+  color-scheme: light;
+  --canvas: #f5f6f9;
+  --surface: #ffffff;
+  --surface-2: #f8f9fb;
+  --surface-3: #eef0f4;
+  --line: #e4e7ec;
+  --line-strong: #cfd4dc;
+  --fg: #0f172a;
+  --fg-2: #344054;
+  --muted: #5b6474;
+  --subtle: #8a93a3;
+  --ink: #111827;
+  --on-ink: #ffffff;
+
+  --brand: #4f46e5;
+  --brand-strong: #4338ca;
+  --brand-soft: #eef2ff;
+  --brand-line: #c7d2fe;
+  --brand-fg: #4338ca;
+
+  --success: #059669;
+  --success-soft: #ecfdf5;
+  --success-line: #a7f3d0;
+  --success-fg: #047857;
+  --warning: #d97706;
+  --warning-soft: #fffbeb;
+  --warning-line: #fde68a;
+  --warning-fg: #92400e;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --danger-line: #fecaca;
+  --danger-fg: #b91c1c;
+  --info: #0284c7;
+  --info-soft: #f0f9ff;
+  --info-line: #bae6fd;
+  --info-fg: #0369a1;
+  --accent: #7c3aed;
+  --accent-soft: #f5f3ff;
+  --accent-line: #ddd6fe;
+  --accent-fg: #6d28d9;
+}
+
+
+/* Dark theme: the system preference, unless the user picked light; an explicit dark choice always wins. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --canvas: #0b0f17;
+    --surface: #121826;
+    --surface-2: #171e2d;
+    --surface-3: #1f2737;
+    --line: #262f40;
+    --line-strong: #364052;
+    --fg: #e8ecf3;
+    --fg-2: #c9d0dc;
+    --muted: #97a1b2;
+    --subtle: #6b7587;
+    --ink: #e8ecf3;
+    --on-ink: #0b0f17;
+
+    --brand: #6366f1;
+    --brand-strong: #818cf8;
+    --brand-soft: #1e1f45;
+    --brand-line: #3b3f8f;
+    --brand-fg: #a5b4fc;
+
+    --success: #10b981;
+    --success-soft: #0c2a22;
+    --success-line: #14532d;
+    --success-fg: #6ee7b7;
+    --warning: #f59e0b;
+    --warning-soft: #2d2208;
+    --warning-line: #5b4210;
+    --warning-fg: #fcd34d;
+    --danger: #ef4444;
+    --danger-soft: #331314;
+    --danger-line: #6b1f22;
+    --danger-fg: #fca5a5;
+    --info: #38bdf8;
+    --info-soft: #0b2535;
+    --info-line: #0c4a6e;
+    --info-fg: #7dd3fc;
+    --accent: #a78bfa;
+    --accent-soft: #231a3d;
+    --accent-line: #4c3a86;
+    --accent-fg: #c4b5fd;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #0b0f17;
+  --surface: #121826;
+  --surface-2: #171e2d;
+  --surface-3: #1f2737;
+  --line: #262f40;
+  --line-strong: #364052;
+  --fg: #e8ecf3;
+  --fg-2: #c9d0dc;
+  --muted: #97a1b2;
+  --subtle: #6b7587;
+  --ink: #e8ecf3;
+  --on-ink: #0b0f17;
+
+  --brand: #6366f1;
+  --brand-strong: #818cf8;
+  --brand-soft: #1e1f45;
+  --brand-line: #3b3f8f;
+  --brand-fg: #a5b4fc;
+
+  --success: #10b981;
+  --success-soft: #0c2a22;
+  --success-line: #14532d;
+  --success-fg: #6ee7b7;
+  --warning: #f59e0b;
+  --warning-soft: #2d2208;
+  --warning-line: #5b4210;
+  --warning-fg: #fcd34d;
+  --danger: #ef4444;
+  --danger-soft: #331314;
+  --danger-line: #6b1f22;
+  --danger-fg: #fca5a5;
+  --info: #38bdf8;
+  --info-soft: #0b2535;
+  --info-line: #0c4a6e;
+  --info-fg: #7dd3fc;
+  --accent: #a78bfa;
+  --accent-soft: #231a3d;
+  --accent-line: #4c3a86;
+  --accent-fg: #c4b5fd;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--fg);
+  font-feature-settings: "cv11", "ss01";
+}
+
+::selection {
+  background: var(--brand-line);
+}
+
+/* Shared component styles. */
+@utility input {
+  @apply block w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-fg shadow-xs transition-colors placeholder:text-subtle hover:border-subtle focus:border-brand focus:ring-3 focus:ring-brand/15 focus:outline-none disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-muted aria-invalid:border-danger;
+}
+
+@utility label {
+  @apply mb-1.5 block text-xs font-medium text-fg-2;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium whitespace-nowrap transition focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-canvas focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility btn-primary {
+  @apply btn bg-brand text-on-brand shadow-sm hover:bg-brand-strong;
+}
+
+@utility btn-secondary {
+  @apply btn border border-line-strong bg-surface text-fg-2 shadow-xs hover:bg-surface-2 hover:text-fg;
+}
+
+@utility btn-ghost {
+  @apply btn text-muted hover:bg-surface-3 hover:text-fg;
+}
+
+@utility btn-danger {
+  @apply btn border border-danger-line bg-surface text-danger-fg hover:bg-danger-soft;
+}
+
+@utility btn-sm {
+  @apply px-2.5 py-1.5 text-xs;
+}
+
+@utility card {
+  @apply rounded-xl border border-line bg-surface shadow-card;
+}
+
+@utility link {
+  @apply font-medium text-brand-fg underline-offset-2 hover:underline;
+}
+
+@utility table-base {
+  @apply min-w-full text-sm;
+  & th {
+    @apply border-b border-line bg-surface-2 px-3 py-2.5 text-left text-xs font-medium whitespace-nowrap text-muted;
+  }
+  & td {
+    @apply border-b border-line px-3 py-3 align-top text-fg-2;
+  }
+  & tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  & tbody tr {
+    @apply transition-colors;
+  }
+}
+
+@utility chip {
+  @apply inline-flex items-center gap-1 rounded-full border border-line-strong bg-surface px-2.5 py-1 text-xs font-medium text-fg-2 transition hover:bg-surface-2;
+}
+
+@utility kbd {
+  @apply rounded border border-line-strong bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] text-muted;
+}
+
+/* Native form controls follow the theme. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--brand);
+}
+
+/* Scrollbars: thin, and only visible while something is scrolling (see ScrollActivity). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+html[data-scrolling],
+html[data-scrolling] * {
+  scrollbar-color: var(--line-strong) transparent;
+}

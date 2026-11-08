@@ -1,0 +1,46 @@
+# Production deploys from GitHub Actions. On the Vercel Hobby plan, Vercel's own Git
+# deploys are blocked for pushes by anyone who isn't on the Vercel project, so every push
+# to main is deployed here with the project's token instead.
+# Needs repository secrets VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID.
+name: Deploy to Vercel (production)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One deploy at a time, in push order.
+concurrency:
+  group: vercel-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install the Vercel CLI
+        run: npm install --global vercel@64.1.0
+
+      # Hobby blocks deploys whose commit author isn't on the Vercel project; deploy without git metadata.
+      - name: Drop git metadata
+        run: rm -rf .git
+
+      # Vercel builds it, so its sensitive environment variables (DATABASE_URL) are available.
+      - name: Deploy
+        run: vercel deploy --prod --yes --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

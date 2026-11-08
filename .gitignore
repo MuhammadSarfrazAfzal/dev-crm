@@ -1,0 +1,14 @@
+node_modules/
+.next/
+.next-e2e/
+out/
+next-env.d.ts
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+# local database, uploads and test output
+.local/
+test-results/
+playwright-report/
+coverage/

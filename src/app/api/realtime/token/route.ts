@@ -14,12 +14,16 @@ export async function GET() {
   const cfg = supabaseConfig();
   if (cfg) {
     const t = usesSupabaseAuth() ? await getRealtimeToken(user.id) : null;
+    const clientPublicKey =
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+      process.env.SUPABASE_PUBLISHABLE_KEY ??
+      cfg.anonKey;
     return NextResponse.json(
       {
         mode: "supabase",
         url: cfg.url,
-        anonKey: cfg.anonKey,
-        accessToken: t?.accessToken ?? cfg.anonKey,
+        anonKey: clientPublicKey,
+        accessToken: t?.accessToken ?? clientPublicKey,
         expiresAt: t?.expiresAt ?? Math.floor(Date.now() / 1000) + 86400,
       },
       { headers: { "cache-control": "no-store" } }

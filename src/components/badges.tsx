@@ -6,7 +6,7 @@ import {
 } from "@/lib/labels";
 
 const OUTCOME_TONE: Record<CallOutcome, Tone> = {
-  no_answer: "slate", busy: "slate", wrong_number: "red", connected: "brand",
+  agreed: "green", no_answer: "slate", busy: "slate", wrong_number: "red", connected: "brand",
   callback_requested: "amber", interested: "green", not_interested: "slate",
   call_hangup: "red",
 };

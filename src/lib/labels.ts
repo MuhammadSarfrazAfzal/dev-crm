@@ -7,31 +7,37 @@ export const PRODUCT_LABEL: Record<Product, string> = { pos: "8staros POS", whol
 export const PRODUCT_SHORT: Record<Product, string> = { pos: "8staros POS", wholesale: "Wholesale" };
 
 export const CALL_OUTCOMES = [
-  "no_answer", "busy", "wrong_number", "connected",
-  "callback_requested", "interested", "not_interested", "call_hangup",
+  "agreed", "interested", "connected", "callback_requested",
+  "not_interested", "call_hangup",
+  "no_answer", "busy", "wrong_number",
 ] as const;
 export type CallOutcome = (typeof CALL_OUTCOMES)[number];
 
-export const HIDDEN_CALL_OUTCOMES = new Set<string>(["agreed", "do_not_call", "voicemail", "gatekeeper"]);
+export const HIDDEN_CALL_OUTCOMES = new Set<string>(["do_not_call", "voicemail", "gatekeeper"]);
 
 export const OUTCOME_LABEL: Record<CallOutcome, string> = {
-  no_answer: "No answer",
-  busy: "Busy",
-  wrong_number: "Wrong number",
-  connected: "Spoke to decision maker",
+  agreed: "Agreed to Meeting / Demo",
+  interested: "Interested in POS Service",
+  connected: "Discovery in progress",
   callback_requested: "Call back later",
-  interested: "Interested",
   not_interested: "Not interested",
-  call_hangup: "Call hang-up",
+  call_hangup: "Customer hung up",
+  no_answer: "No answer",
+  busy: "Line busy",
+  wrong_number: "Wrong number",
 };
 
 /** Outcomes where the rep actually talked to someone at the shop. */
-export const REACHED_OUTCOMES: readonly CallOutcome[] = ["connected", "callback_requested", "interested", "not_interested", "call_hangup"];
+export const REACHED_OUTCOMES: readonly CallOutcome[] = ["agreed", "interested", "connected", "callback_requested", "not_interested", "call_hangup"];
 
 /** Common next steps after a positive call; the rep can also type their own. */
 export const NEXT_STEPS: string[] = [
-  "Book a POS demo", "Start a POS free trial", "Send the price list", "Take the first order",
-  "Send pricing", "Send the catalog", "Visit the shop", "Call back with answers",
+  "Meeting with Founder to close deal",
+  "Live POS Services Demo",
+  "Send meeting link on WhatsApp",
+  "Send calendar invite via Email",
+  "Send custom POS proposal & quote",
+  "Follow up on WhatsApp",
 ];
 
 export const INTEREST_LEVELS = ["unknown", "not_interested", "curious", "interested", "hot"] as const;

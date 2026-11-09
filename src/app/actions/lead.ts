@@ -10,7 +10,7 @@ import { CALL_OUTCOMES, DEAL_STAGES, EMAIL_STATUSES, INTEREST_LEVELS, LEAD_STATU
 import { followupQuickPicks, isValidTimeZone, legalWindow, PAKISTAN_TZ, withinLegalWindow, zonedToUtc, formatInZone } from "@/lib/time";
 import { parsePhone, splitPhones, type StoredPhone } from "@/lib/phone";
 import { normalizeWebsite, parseEmail, splitEmails, websiteDomain } from "@/lib/email";
-import { normalizeState, timeZoneForState } from "@/lib/us";
+import { normalizeState, resolveCompanyTimeZone, timeZoneForState } from "@/lib/us";
 import { isUuid } from "@/lib/params";
 
 /** `savedAt` changes on every success so client forms can reset themselves (used as a React key). */
@@ -487,9 +487,9 @@ export async function updateCompany(_prev: ActionState, form: FormData): Promise
   const d = parsed.data;
   const state = d.state ? normalizeState(d.state) : null;
   if (d.state && !state) return { error: `"${d.state}" isn't a US state.` };
-  const tz = d.timeZone && isValidTimeZone(d.timeZone) ? d.timeZone : timeZoneForState(state);
   const phones = parsePhoneList(d.phones, "main");
   const emails = parseEmailList(d.emails, "general");
+  const { timeZone: tz } = resolveCompanyTimeZone({ timeZone: d.timeZone, state, city: d.city, phone: phones.phones[0]?.e164 });
   if (phones.bad.length) return { error: `Can't read phone number: ${phones.bad.join(", ")}` };
   if (emails.bad.length) return { error: `Can't read email: ${emails.bad.join(", ")}` };
   const website = d.website ? normalizeWebsite(d.website) : null;

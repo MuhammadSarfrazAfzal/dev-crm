@@ -1,6 +1,6 @@
 import { parsePhone, splitPhones, type StoredPhone } from "../phone";
 import { normalizeWebsite, parseEmail, splitEmails, websiteDomain } from "../email";
-import { normalizeState, timeZoneForState } from "../us";
+import { normalizeState, resolveCompanyTimeZone, timeZoneForState } from "../us";
 import type { Field } from "./columns";
 import { findAddress, maskContacts } from "./address";
 import { hostOf, isDirectoryHost } from "./directories";
@@ -142,7 +142,7 @@ export function normalizeRow(
       city: clean(values.city),
       state,
       postal_code: postal,
-      time_zone: timeZoneForState(state),
+      time_zone: resolveCompanyTimeZone({ state, city: clean(values.city), phone: phones[0]?.e164 }).timeZone,
       notes: clean(values.notes, 4000),
       source,
       area: clean(values.area),

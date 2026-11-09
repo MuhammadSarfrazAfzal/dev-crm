@@ -120,6 +120,11 @@ const LogCallSchema = z.object({
   followupKind: z.enum(["call", "email", "task"]).default("call"),
   followupNotes: optText(5000),
   confirmOutside: checkbox,
+  meeting_agreed: checkbox,
+  demo_requested: checkbox,
+  send_whatsapp: checkbox,
+  send_email: checkbox,
+  whatsappPhone: optText(32),
   product_pos: productChoice,
   product_wholesale: productChoice,
   pos_send_email: checkbox,
@@ -135,35 +140,43 @@ export async function logCall(_prev: ActionState, form: FormData): Promise<Actio
   const d = parsed.data;
   const phone = d.phone ? parsePhone(d.phone).e164 : null;
   let emailTo: string | null = null;
-  if (d.emailRequired && d.emailTo) {
+  if ((d.emailRequired || d.send_email || d.pos_send_email) && d.emailTo) {
     const e = parseEmail(d.emailTo);
     if (!e.valid) return { error: "That email address doesn't look right." };
     emailTo = e.address;
   }
 
-    const emailProducts: string[] = [];
-  if (d.pos_send_email) emailProducts.push("8staros POS");
-  if (d.wholesale_send_email) emailProducts.push("Wholesale phones & accessories");
-  const sendEmail = emailProducts.length > 0 || d.emailRequired;
-
-  const waProducts: string[] = [];
-  if (d.pos_send_whatsapp) waProducts.push("8staros POS");
-  if (d.wholesale_send_whatsapp) waProducts.push("Wholesale phones & accessories");
-  const sendWhatsApp = waProducts.length > 0;
+  const isAgreed = d.outcome === "agreed" || d.meeting_agreed;
+  const isDemo = d.demo_requested;
+  const sendWhatsApp = d.send_whatsapp || d.pos_send_whatsapp || d.wholesale_send_whatsapp;
+  const sendEmail = d.send_email || d.pos_send_email || d.wholesale_send_email || d.emailRequired;
 
   const details: string[] = [];
-  if (emailProducts.length) details.push(`Email to send: ${emailProducts.join(" · ")}`);
-  if (waProducts.length) details.push(`WhatsApp to send: ${waProducts.join(" · ")}`);
-  const notes = [details.join("\n"), d.reason ? `Reason: ${d.reason}` : null, d.hangupExplanation ? `Hang up: ${d.hangupExplanation}` : null, d.notes].filter(Boolean).join("\n") || null;
-  const nextStep = ["interested", "connected"].includes(d.outcome) ? d.nextStep : null;
-  const talked = ["interested", "connected", "callback_requested"].includes(d.outcome);
-  const interestedIn = talked ? productsWith(d, "interested") : [];
-  const bought = talked ? productsWith(d, "bought") : [];
+  if (isAgreed) details.push("✓ Meeting with Founder agreed (to close deal)");
+  if (isDemo) details.push("✓ Client requested live demo of POS development services");
+  if (sendWhatsApp) details.push("✓ Send meeting/demo details via WhatsApp");
+  if (sendEmail) details.push("✓ Send meeting/demo details via Email");
+
+  const notes = [
+    details.length ? details.join("\n") : null,
+    d.notes,
+    d.reason ? `Reason: ${d.reason}` : null,
+    d.hangupExplanation ? `Hang up: ${d.hangupExplanation}` : null,
+  ].filter(Boolean).join("\n\n") || null;
+
+  const nextStep = ["agreed", "interested", "connected"].includes(d.outcome) ? d.nextStep : null;
+  const talked = ["agreed", "interested", "connected", "callback_requested"].includes(d.outcome);
+  // Devsolutionspk provides POS development service: mark POS interest on positive calls or demo/meeting requests
+  const interestedIn = talked && (isAgreed || isDemo || d.outcome === "agreed" || d.outcome === "interested" || d.product_pos === "interested")
+    ? (["pos"] as Product[])
+    : productsWith(d, "interested");
+  const bought = productsWith(d, "bought");
 
   return guarded(user, d.leadId, async (tx) => {
     // Check the follow-up first so a bad time doesn't leave a half-saved call.
     let followupDue: Date | null = null;
-    const fu: FollowupInput = { dueLocal: d.dueLocal, dueTz: d.dueTz, kind: d.followupKind, notes: d.followupNotes, confirmOutside: d.confirmOutside };
+    const fuNotes = d.followupNotes || (isAgreed ? "Closing meeting with Founder for POS development" : isDemo ? "Live demo of POS development services" : null);
+    const fu: FollowupInput = { dueLocal: d.dueLocal, dueTz: d.dueTz, kind: d.followupKind, notes: fuNotes, confirmOutside: d.confirmOutside };
     const wantsFollowup = d.scheduleFollowup && d.outcome !== "wrong_number" && !!d.dueTz && !!d.dueLocal;
     if (wantsFollowup) {
       const r = await resolveFollowupTime(tx, d.leadId, fu);
@@ -189,32 +202,28 @@ export async function logCall(_prev: ActionState, form: FormData): Promise<Actio
         values (${d.leadId}, ${lead?.owner_id || user.id}, ${user.id}, 'call', now(), ${cbTz}, 'pending', ${cbNote})`;
     }
 
-    const emailProducts: string[] = [];
-    if (d.pos_send_email) emailProducts.push("8staros POS");
-    if (d.wholesale_send_email) emailProducts.push("Wholesale phones & accessories");
-    const sendEmail = emailProducts.length > 0 || d.emailRequired;
-
-    const waProducts: string[] = [];
-    if (d.pos_send_whatsapp) waProducts.push("8staros POS");
-    if (d.wholesale_send_whatsapp) waProducts.push("Wholesale phones & accessories");
-    const sendWhatsApp = waProducts.length > 0;
-
     if (sendEmail) {
       let targetEmail = emailTo;
       if (!targetEmail) {
         const [co] = await tx`select coalesce(c.emails -> 0 ->> 'address', (select ct.emails -> 0 ->> 'address' from contacts ct where ct.company_id = c.id and jsonb_array_length(ct.emails) > 0 limit 1)) as email from leads l join companies c on c.id = l.company_id where l.id = ${d.leadId}`;
         targetEmail = co?.email ?? null;
       }
-      const note = emailProducts.length
-        ? `Email to send: ${emailProducts.join(", ")}`
-        : "Email requested on call";
+      const note = isAgreed
+        ? `Meeting invite: Founder closing meeting & POS development services${isDemo ? " (live demo requested)" : ""}`
+        : isDemo
+        ? "POS development live demo & services presentation"
+        : "Email requested on discovery call";
       await tx`insert into email_activities (lead_id, user_id, to_address, status, notes)
         values (${d.leadId}, ${user.id}, ${targetEmail}, 'pending', ${note})`;
       await tx`update leads set email_status = 'pending', email_required = true where id = ${d.leadId}`;
     }
 
     if (sendWhatsApp) {
-      const waNote = `WhatsApp to send: ${waProducts.join(", ")}`;
+      const waNote = isAgreed
+        ? `WhatsApp: Send Founder meeting link & POS services${isDemo ? " (live demo requested)" : ""}`
+        : isDemo
+        ? "WhatsApp: Send POS development demo link & walkthrough"
+        : "WhatsApp: Send discovery follow-up & service details";
       const waDue = new Date();
       await tx`insert into followups (lead_id, assigned_to, created_by, kind, due_at, time_zone, status, notes)
         values (${d.leadId}, ${user.id}, ${user.id}, 'task', ${waDue}, ${user.timeZone || 'America/New_York'}, 'pending', ${waNote})`;

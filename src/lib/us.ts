@@ -78,6 +78,79 @@ export function timeZoneForState(raw: string | null | undefined): string | null 
   return code ? (byCode.get(code)?.timeZone ?? null) : null;
 }
 
+const MAJOR_CITIES_STATE: Record<string, string> = {
+  columbus: "OH",
+  cleveland: "OH",
+  cincinnati: "OH",
+  houston: "TX",
+  dallas: "TX",
+  austin: "TX",
+  "san antonio": "TX",
+  "fort worth": "TX",
+  seattle: "WA",
+  spokane: "WA",
+  tacoma: "WA",
+  chicago: "IL",
+  "los angeles": "CA",
+  "san francisco": "CA",
+  "san diego": "CA",
+  "san jose": "CA",
+  denver: "CO",
+  phoenix: "AZ",
+  miami: "FL",
+  orlando: "FL",
+  tampa: "FL",
+  "new york": "NY",
+  brooklyn: "NY",
+  manhattan: "NY",
+  queens: "NY",
+  atlanta: "GA",
+  boston: "MA",
+  philadelphia: "PA",
+  detroit: "MI",
+  nashville: "TN",
+  portland: "OR",
+  "las vegas": "NV",
+};
+
+export function inferStateFromLocation(city?: string | null, state?: string | null, phone?: string | null): string | null {
+  const normalized = normalizeState(state);
+  if (normalized) return normalized;
+
+  if (city) {
+    const c = city.trim().toLowerCase();
+    if (MAJOR_CITIES_STATE[c]) return MAJOR_CITIES_STATE[c];
+  }
+
+  if (phone) {
+    const digits = phone.replace(/\D/g, "");
+    const match = digits.match(/^1?([2-9]\d{2})/);
+    if (match) {
+      const fromArea = stateForAreaCode(match[1]);
+      if (fromArea) return fromArea;
+    }
+  }
+
+  return null;
+}
+
+export function resolveCompanyTimeZone(opts: {
+  timeZone?: string | null;
+  state?: string | null;
+  city?: string | null;
+  phone?: string | null;
+}): { timeZone: string; state: string | null } {
+  const inferredState = inferStateFromLocation(opts.city, opts.state, opts.phone);
+  if (inferredState) {
+    const stateTz = timeZoneForState(inferredState);
+    if (stateTz) return { timeZone: stateTz, state: inferredState };
+  }
+  if (opts.timeZone) {
+    return { timeZone: opts.timeZone, state: opts.state ?? null };
+  }
+  return { timeZone: "America/New_York", state: opts.state ?? null };
+}
+
 /**
  * Geographic NANP area codes by state. Overlays included. Toll-free and non-geographic
  * codes (800s, 500, 600, 700, 900) are deliberately absent.

@@ -190,7 +190,12 @@ export type CallingWindow = {
   message: string;
 };
 
-export function callingWindow(timeZone: string | null | undefined, state: string | null | undefined, now = trustedNow()): CallingWindow {
+export function callingWindow(
+  timeZone: string | null | undefined,
+  state: string | null | undefined,
+  now = trustedNow(),
+  locationLabel?: string | null
+): CallingWindow {
   if (!isValidTimeZone(timeZone)) {
     return { status: "unknown_zone", localTime: "", zone: "", message: "Time zone unknown: add the shop's state before calling." };
   }
@@ -198,15 +203,16 @@ export function callingWindow(timeZone: string | null | undefined, state: string
   const minutes = w.hour * 60 + w.minute;
   const localTime = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short", hour: "numeric", minute: "2-digit" }).format(now);
   const zone = zoneAbbreviation(now, timeZone);
+  const label = locationLabel ? ` (${locationLabel})` : " at the shop";
   const legal = legalWindow(state);
   if (minutes < legal.startHour * 60 || minutes >= legal.endHour * 60) {
-    return { status: "outside_legal", localTime, zone, message: `It's ${localTime} ${zone} there. Calls are only allowed ${legal.label}.` };
+    return { status: "outside_legal", localTime, zone, message: `It's ${localTime} ${zone}${label}. Calls are only allowed ${legal.label}.` };
   }
   const weekend = w.weekday === 0 || w.weekday === 6;
   if (weekend || minutes < HOUSE_WINDOW.startHour * 60 || minutes >= HOUSE_WINDOW.endHour * 60) {
-    return { status: "outside_house", localTime, zone, message: `It's ${localTime} ${zone} there: legal, but outside our ${HOUSE_WINDOW.label}.` };
+    return { status: "outside_house", localTime, zone, message: `It's ${localTime} ${zone}${label}: legal, but outside our ${HOUSE_WINDOW.label}.` };
   }
-  return { status: "ok", localTime, zone, message: `${localTime} ${zone} at the shop. Good time to call.` };
+  return { status: "ok", localTime, zone, message: `${localTime} ${zone}${label}. Good time to call.` };
 }
 
 /** True when an instant falls inside the legal calling window for that zone and state. */

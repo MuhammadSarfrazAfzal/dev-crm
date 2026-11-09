@@ -6,7 +6,15 @@ import { callingWindow } from "@/lib/time";
 import { cn } from "../ui";
 
 /** Live local time at the shop with the calling-window status. */
-export function ShopClock({ timeZone, state }: { timeZone: string | null; state: string | null }) {
+export function ShopClock({
+  timeZone,
+  state,
+  locationLabel,
+}: {
+  timeZone: string | null;
+  state: string | null;
+  locationLabel?: string | null;
+}) {
   const [now, setNow] = useState(() => trustedNow());
   useEffect(() => {
     // Re-read once the browser is on the trusted clock (the first render may predate it).
@@ -17,7 +25,7 @@ export function ShopClock({ timeZone, state }: { timeZone: string | null; state:
       clearInterval(t);
     };
   }, []);
-  const w = callingWindow(timeZone, state, now);
+  const w = callingWindow(timeZone, state, now, locationLabel);
   const tone = {
     ok: "border-success-line bg-success-soft text-success-fg",
     outside_house: "border-warning-line bg-warning-soft text-warning-fg",

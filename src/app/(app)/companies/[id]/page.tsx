@@ -11,7 +11,7 @@ import { withUserDb } from "@/lib/auth/current";
 import { plural, relativeTime } from "@/lib/format";
 import { isUuid } from "@/lib/params";
 import { formatInZone, shownZone } from "@/lib/time";
-import { stateName } from "@/lib/us";
+import { resolveCompanyTimeZone, stateName } from "@/lib/us";
 import { getCompany } from "@/server/companies";
 
 export const metadata: Metadata = { title: "Company" };
@@ -25,7 +25,7 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
   const { user, detail } = data;
   const { company: c, contacts, leads, calls, documents } = detail;
   const editLeadId = leads[0]?.id ?? null;
-  const tz = c.time_zone ?? user.timeZone;
+  const { timeZone: tz } = resolveCompanyTimeZone({ timeZone: c.time_zone, state: c.state, city: c.city });
   const noCall = c.suppression === "do_not_call" || c.suppression === "do_not_contact";
 
   const fromUrl = typeof sp.from === "string" ? sp.from : undefined;

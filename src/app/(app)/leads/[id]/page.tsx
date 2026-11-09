@@ -20,7 +20,7 @@ import { DEAL_STAGES, EMAIL_STATUSES, HIDDEN_CALL_OUTCOMES, EMAIL_STATUS_LABEL, 
 import { isUuid } from "@/lib/params";
 import { formatPhone } from "@/lib/phone";
 import { formatInZone, otherZone, shownZone } from "@/lib/time";
-import { stateName } from "@/lib/us";
+import { resolveCompanyTimeZone, stateName } from "@/lib/us";
 import { getCurrentScripts, getDocuments, getFollowups, getLead, getOpportunities, getTimeline, type TimelineItem } from "@/server/lead-detail";
 
 export const metadata: Metadata = { title: "Lead" };
@@ -53,7 +53,6 @@ export default async function LeadPage({ params, searchParams }: { params: Promi
   const { user, lead, timeline, followups, deals, documents, scripts } = data;
   const c = lead.company;
   const companyNoCall = c.suppression === "do_not_call" || c.suppression === "do_not_contact";
-  const tz = c.time_zone;
 
   const fromUrl = typeof sp.from === "string" ? sp.from : undefined;
   let backHref = "/leads";
@@ -86,14 +85,25 @@ export default async function LeadPage({ params, searchParams }: { params: Promi
     ),
     ...c.phones.map((p) => ({ e164: p.e164, ext: p.ext, label: `${c.name} · ${p.label ?? "main line"}`, contactId: null, blocked: companyNoCall })),
   ];
+  const primaryPhone = numbers.find((n) => !n.blocked);
+
+  // Automatically resolve the exact local time zone from company state, city or area code
+  const { timeZone: tz, state: resolvedState } = resolveCompanyTimeZone({
+    timeZone: c.time_zone,
+    state: c.state,
+    city: c.city,
+    phone: primaryPhone?.e164 ?? c.phones[0]?.e164,
+  });
+
+  const displayState = resolvedState ?? c.state;
+  const location = [c.city, displayState && stateName(displayState)].filter(Boolean).join(", ");
+  const clockLabel = [c.city, displayState && stateName(displayState)].filter(Boolean).join(", ") || (displayState ? stateName(displayState) : "at the shop");
+
   const emails = [...lead.contacts.flatMap((ct) => ct.emails.map((e) => e.address)), ...c.emails.map((e) => e.address)];
   const primary = lead.contacts.find((ct) => ct.id === lead.primary_contact_id) ?? lead.contacts[0];
   const pendingFollowups = followups.filter((f) => f.status === "pending");
   const hasPendingCall = pendingFollowups.some((f) => f.kind === "call");
   const scriptVars = { rep_name: user.fullName, contact_name: primary?.full_name?.split(" ")[0] ?? "there", company: c.name };
-
-  const primaryPhone = numbers.find((n) => !n.blocked);
-  const location = [c.city, c.state && stateName(c.state)].filter(Boolean).join(", ");
 
   return (
     <>
@@ -108,7 +118,7 @@ export default async function LeadPage({ params, searchParams }: { params: Promi
             <Link href={`/companies/${c.id}?from=${encodeURIComponent(backHref)}`} className="link inline-flex items-center gap-1"><Icon name="companies" className="size-3.5" />Company page</Link>
           </span>
         }
-        actions={<div className="w-full sm:w-80"><ShopClock timeZone={tz} state={c.state} /></div>}
+        actions={<div className="w-full sm:w-80"><ShopClock timeZone={tz} state={displayState} locationLabel={clockLabel} /></div>}
       />
 
       <div className="-mt-3 mb-5 flex flex-wrap items-center gap-1.5">
@@ -149,7 +159,7 @@ export default async function LeadPage({ params, searchParams }: { params: Promi
               numbers={numbers}
               emails={emails}
               leadTz={tz}
-              leadState={c.state}
+              leadState={displayState}
               view={user.view}
               usTz={user.usTimeZone}
               hasPendingCallFollowup={hasPendingCall}
@@ -266,7 +276,7 @@ export default async function LeadPage({ params, searchParams }: { params: Promi
             )}
             <details>
               <summary className="flex cursor-pointer items-center gap-1.5 text-sm font-medium text-brand-fg"><Icon name="plus" className="size-3.5" /> Schedule WhatsApp / follow-up</summary>
-              <div className="mt-3"><ScheduleFollowupForm leadId={lead.id} leadTz={tz} leadState={c.state} view={user.view} usTz={user.usTimeZone} /></div>
+              <div className="mt-3"><ScheduleFollowupForm leadId={lead.id} leadTz={tz} leadState={displayState} view={user.view} usTz={user.usTimeZone} /></div>
             </details>
           </Card>
 

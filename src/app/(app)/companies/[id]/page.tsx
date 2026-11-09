@@ -65,7 +65,7 @@ export default async function CompanyPage({ params, searchParams }: { params: Pr
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-6">
-          <Card title="Lead" icon="leads" description="Every shop is offered both 8staros POS and wholesale phones & accessories.">
+          <Card title="Lead" icon="leads" description="POS Development Service lead details and status.">
             {leads.length === 0 ? <p className="text-sm text-muted">No leads for this company.</p> : (
               <ul className="grid gap-3">
                 {leads.map((l) => (

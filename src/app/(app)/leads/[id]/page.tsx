@@ -160,7 +160,7 @@ export default async function LeadPage({ params, searchParams }: { params: Promi
             />
           </Card>
 
-          <Card title="Scripts" description="Offer both: 8staros POS and wholesale phones & accessories." icon="script" actions={<Link href="/scripts" className="link text-xs">Library</Link>}>
+          <Card title="Scripts" description="POS Development Service discovery & closing pitch scripts." icon="script" actions={<Link href="/scripts" className="link text-xs">Library</Link>}>
             <ScriptsPanel scripts={scripts} vars={scriptVars} />
           </Card>
 

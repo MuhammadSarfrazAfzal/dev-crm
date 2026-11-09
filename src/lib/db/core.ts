@@ -111,12 +111,12 @@ export function poolOptions(url: string, env: Record<string, string | undefined>
   const mode = poolMode(url);
   const serverless = !!env.VERCEL;
   const small = serverless || mode === "session" || mode === "transaction";
-  const max = Number(env.PG_POOL_MAX) || (mode === "local" ? 10 : small ? 2 : 10);
+  const max = Number(env.PG_POOL_MAX) || (mode === "local" ? 10 : mode === "transaction" ? 5 : small ? 3 : 10);
   return {
     max,
     // Long-running servers keep connections to the hosted database (opening one is slow);
     // pooled and serverless ones give their slot back after a few idle seconds.
-    idle_timeout: mode === "local" ? 30 : small ? Number(env.PG_IDLE_TIMEOUT) || 10 : 0,
+    idle_timeout: mode === "local" ? 30 : small ? Number(env.PG_IDLE_TIMEOUT) || 15 : 0,
     ...(mode === "transaction" ? { prepare: false } : {}),
     warm: mode === "direct" && !serverless,
   };

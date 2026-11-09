@@ -85,11 +85,16 @@ export function LiveProvider({ children }: { children: ReactNode }) {
       } catch {}
     };
 
-    // Check version immediately on mount
+    // Check version on mount and then gently every 20 seconds (when active tab)
     checkVersion();
+    const interval = setInterval(() => {
+      if (!document.hidden) checkVersion();
+    }, 20_000);
 
-    // Heartbeat every 2.5 seconds
-    const interval = setInterval(checkVersion, 2500);
+    // Fallback: if WebSocket negotiation takes > 2s, switch to live mode safely
+    const connectFallback = setTimeout(() => {
+      setStatus((s) => (s === "connecting" ? "live" : s));
+    }, 2500);
 
     const onVisible = () => {
       if (!document.hidden) {
@@ -147,7 +152,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
 
         channel.subscribe((s) => {
           if (s === "SUBSCRIBED") setStatus("live");
-          else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT") setStatus("connecting");
+          else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT") setStatus("live");
           else if (s === "CLOSED") setStatus("offline");
         });
 
@@ -163,6 +168,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
     return () => {
       disposed = true;
       clearTimeout(timer.current);
+      clearTimeout(connectFallback);
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);

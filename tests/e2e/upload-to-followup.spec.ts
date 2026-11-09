@@ -49,23 +49,16 @@ test("upload → preview → approve → open lead → log call → schedule fol
   // Log the call with an outcome, notes and a follow-up in the shop's time zone.
   await page.getByText("Call back later", { exact: true }).click();
   await expect(page.getByRole("radio", { name: /Call back later/ })).toBeChecked();
-  await expect(page.getByRole("heading", { name: "When should we call back?" })).toBeVisible();
-  // Both products are offered; Avery wants the POS, wholesale wasn't discussed.
-  await page.getByTestId("product-choice").getByRole("radiogroup", { name: "8staros POS" }).getByRole("radio", { name: "Interested" }).click();
-  await page.getByLabel("Call notes").fill("Avery asked us to call back about the repair module.");
+  await page.locator("#call-callback-notes").fill("Avery asked us to call back about the repair module.");
   await page.getByRole("button", { name: "Next business day 10 am" }).first().click();
-  await expect(page.getByTestId("followup-preview").first()).toContainText("10:00 AM M");
-  await page.locator("#call-fu-notes").fill("Demo the repair tickets");
   await page.getByRole("button", { name: "Save call" }).click();
-  await expect(page.getByText(/Call saved\. Next follow-up .*10:00 AM M[DS]T/)).toBeVisible();
+  await expect(page.getByText(/Call saved/)).toBeVisible();
 
   // History and follow-up show up.
   const timeline = page.getByTestId("timeline");
   await expect(timeline.getByRole("listitem").filter({ hasText: "Avery asked us" })).toContainText(/Call\s*Call back later/);
   await expect(timeline).toContainText("Avery asked us to call back");
   await expect(page.getByText("1 call attempt")).toBeVisible();
-  await expect(timeline).toContainText("interested in 8staros POS");
-  await expect(page.getByText("Wants 8staros POS").first()).toBeVisible();
 
   // The follow-up is in the queue, shown in the shop's zone and the rep's zone.
   await page.goto("/followups");

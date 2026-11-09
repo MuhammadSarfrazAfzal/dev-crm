@@ -21,7 +21,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <section className="relative hidden overflow-hidden bg-gradient-to-br from-[#312e81] via-[#4338ca] to-[#6d28d9] p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="flex items-center gap-2.5">
           <span className="flex size-9 items-center justify-center rounded-lg bg-white/15 ring-1 ring-white/25"><Icon name="star" className="size-5" strokeWidth={2} /></span>
-          <span className="font-semibold">Star Sales CRM</span>
+          <span className="font-semibold">Devsolutionspk Sales CRM</span>
         </div>
         <div className="max-w-md">
           <h2 className="text-3xl leading-tight font-semibold tracking-tight">Every shop, every call, every follow-up in one place.</h2>
@@ -42,7 +42,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
             <span className="mb-3 flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand to-accent text-white shadow-sm"><Icon name="star" className="size-5" strokeWidth={2} /></span>
-            <div className="text-sm font-semibold text-fg">Star Sales CRM</div>
+            <div className="text-sm font-semibold text-fg">Devsolutionspk Sales CRM</div>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-fg">Sign in</h1>
           <p className="mt-1 mb-6 text-sm text-muted">Welcome back. Use your work email and password.</p>

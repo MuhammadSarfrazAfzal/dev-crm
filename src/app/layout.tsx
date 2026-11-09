@@ -8,7 +8,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "Star Sales CRM", template: "%s · Star Sales CRM" },
+  title: { default: "Devsolutionspk Sales CRM", template: "%s · Devsolutionspk Sales CRM" },
   description: "Outreach CRM for 8staros POS and Star Cellular Wholesale",
 };
 

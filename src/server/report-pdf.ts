@@ -263,13 +263,13 @@ export async function reportPdf(r: Report, { preparedFor, repName }: { preparedF
   const when = (x: Date | string) => formatInZone(x, tz, { weekday: undefined });
   const title = repName ? `Sales report · ${repName}` : "Sales report · Whole team";
   d.pdf.setTitle(`${title} · ${PERIODS[r.period]}`);
-  d.pdf.setAuthor("Star Sales CRM");
+  d.pdf.setAuthor("Devsolutionspk Sales CRM");
   d.pdf.setCreationDate(generatedAt);
 
   // Cover band.
   d.newPage();
   d.rect(0, H - 104, W, 104, C.brand);
-  d.text("STAR SALES CRM · 8STAROS POS & WHOLESALE", M, H - 30, { size: 8, font: "bold", color: rgb(0.8, 0.8, 1) });
+  d.text("DEVSOLUTIONSPK SALES CRM · 8STAROS POS & WHOLESALE", M, H - 30, { size: 8, font: "bold", color: rgb(0.8, 0.8, 1) });
   d.text(title, M, H - 56, { size: 22, font: "bold", color: C.white });
   d.text(`${periodLabel(r.period, r.range, tz)} · USA time`, M, H - 76, { size: 10.5, color: C.white });
   d.text(`Generated ${formatInZone(generatedAt, tz, { year: "numeric" })} (${formatInZone(generatedAt, PAKISTAN_TZ, { weekday: undefined })} in Pakistan) · prepared by ${preparedFor}`, M, H - 93, { size: 8, color: rgb(0.85, 0.85, 1) });
@@ -400,7 +400,7 @@ export async function reportPdf(r: Report, { preparedFor, repName }: { preparedF
   pages.forEach((pg: any, i: number) => {
     d.page = pg;
     d.hline(M - 6);
-    d.text(`Star Sales CRM · ${title} · ${PERIODS[r.period]}`, M, M - 18, { size: 7.5, color: C.muted });
+    d.text(`Devsolutionspk Sales CRM · ${title} · ${PERIODS[r.period]}`, M, M - 18, { size: 7.5, color: C.muted });
     d.text(`Page ${i + 1} of ${pages.length}`, W - M, M - 18, { size: 7.5, color: C.muted, align: "right" });
   });
   return d.pdf.save();

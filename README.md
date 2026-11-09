@@ -1,4 +1,4 @@
-# Star Sales CRM
+# Devsolutionspk Sales CRM
 
 A multi-user B2B outreach CRM for two divisions: **8staros POS** (shop software) and
 **Star Cellular Wholesale** (wholesale phones). Salespeople import lead lists, copy a

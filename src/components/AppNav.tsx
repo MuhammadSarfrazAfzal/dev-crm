@@ -168,7 +168,7 @@ export function AppNav({ user, view }: { user: { fullName: string; email: string
         <Icon name="star" className="size-4.5" strokeWidth={2} />
       </span>
       <span className="text-sm leading-tight font-semibold text-fg">
-        Star Sales CRM
+        Devsolutionspk Sales CRM
         <span className="block text-[11px] font-normal text-muted">POS · Wholesale</span>
       </span>
     </Link>

@@ -77,7 +77,7 @@ async function main() {
           return id;
         });
         if (!process.env.NEW_USER_PASSWORD && file) {
-          fs.writeFileSync(file, `Star Sales CRM sign-in\nemail: ${email}\npassword: ${password}\n`, { mode: 0o600 });
+          fs.writeFileSync(file, `Devsolutionspk Sales CRM sign-in\nemail: ${email}\npassword: ${password}\n`, { mode: 0o600 });
           console.log(`created ${role} ${email} (${id}); password written to ${file}`);
         } else console.log(`created ${role} ${email} (${id})`);
         return;

@@ -136,11 +136,11 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                     {isAdmin && <col className="w-11" />}
                     <col />
                     <col className="hidden w-[10rem] 2xl:table-column" />
-                    <col className="hidden w-[9.5rem] lg:table-column" />
-                    <col className="hidden w-[13rem] xl:table-column" />
+                    <col className="hidden w-[9rem] lg:table-column" />
+                    <col className="hidden w-[12rem] xl:table-column" />
+                    <col className="w-[9rem]" />
                     <col className="w-[9.5rem]" />
-                    <col className="w-[10rem]" />
-                    {isAdmin && <col className="hidden w-[9rem] min-[1700px]:table-column" />}
+                    <col className="w-[9rem]" />
                   </colgroup>
                   <thead>
                     <tr className="text-left text-xs font-medium text-muted [&>th]:sticky [&>th]:top-[53px] [&>th]:z-10 [&>th]:border-b [&>th]:border-line [&>th]:bg-surface-2/95 [&>th]:px-3 [&>th]:py-2.5 [&>th]:font-medium [&>th]:backdrop-blur lg:[&>th]:top-0">
@@ -151,7 +151,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                       <th className="hidden xl:table-cell">Email</th>
                       <SortTh f={f} sortKey="last_call" firstDir="desc">Last call</SortTh>
                       <SortTh f={f} sortKey="next">Next follow-up</SortTh>
-                      {isAdmin && <SortTh f={f} sortKey="owner" className="hidden min-[1700px]:table-cell">Owner</SortTh>}
+                      <SortTh f={f} sortKey="owner">Assigned</SortTh>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
@@ -240,13 +240,16 @@ function LeadTr({ l, isAdmin, view, usTz, query }: { l: LeadRow; isAdmin: boolea
           </>
         ) : <Soft />}
       </td>
-      {isAdmin && (
-        <td className="hidden min-w-0 min-[1700px]:table-cell">
-          {l.owner_name ? (
-            <span className="flex min-w-0 items-center gap-2"><Avatar name={l.owner_name} className="size-6 text-[10px]" /><span className="truncate text-fg-2">{l.owner_name}</span></span>
-          ) : <span className="text-xs font-medium text-warning-fg">Unassigned</span>}
-        </td>
-      )}
+      <td className="min-w-0" data-testid="lead-assigned">
+        {l.owner_name ? (
+          <span className="flex min-w-0 items-center gap-2" title={l.owner_name}>
+            <Avatar name={l.owner_name} className="size-6 shrink-0 text-[10px]" />
+            <span className="truncate font-medium text-fg-2">{l.owner_name}</span>
+          </span>
+        ) : (
+          <span className="text-subtle">-</span>
+        )}
+      </td>
     </tr>
   );
 }

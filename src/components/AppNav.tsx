@@ -163,13 +163,13 @@ export function AppNav({ user, view }: { user: { fullName: string; email: string
   );
 
   const brand = (
-    <Link href="/" className="flex items-center gap-2.5 px-2">
-      <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand to-accent text-white shadow-sm">
+    <Link href="/" className="flex min-w-0 items-center gap-2.5 px-1 sm:px-2">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand to-accent text-white shadow-sm">
         <Icon name="star" className="size-4.5" strokeWidth={2} />
       </span>
-      <span className="text-sm leading-tight font-semibold text-fg">
+      <span className="min-w-0 truncate text-sm leading-tight font-semibold text-fg">
         Devsolutionspk Sales CRM
-        <span className="block text-[11px] font-normal text-muted">POS · Wholesale</span>
+        <span className="block truncate text-[11px] font-normal text-muted">POS Development</span>
       </span>
     </Link>
   );
@@ -184,13 +184,15 @@ export function AppNav({ user, view }: { user: { fullName: string; email: string
       </aside>
 
       {/* Mobile top bar */}
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-surface/90 px-3 py-2 backdrop-blur lg:hidden">
+      <div className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-line bg-surface/90 px-3 py-2 backdrop-blur lg:hidden">
         {brand}
-        <span className="ml-auto mr-1"><LiveBadge /></span>
-        <button type="button" className="btn-ghost px-2" aria-expanded={open} aria-controls="mobile-nav" onClick={() => setOpen((v) => !v)}>
-          <span className="sr-only">Menu</span>
-          <Icon name={open ? "x" : "menu"} className="size-5" />
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <LiveBadge />
+          <button type="button" className="btn-ghost px-2" aria-expanded={open} aria-controls="mobile-nav" onClick={() => setOpen((v) => !v)}>
+            <span className="sr-only">Menu</span>
+            <Icon name={open ? "x" : "menu"} className="size-5" />
+          </button>
+        </div>
       </div>
       {open && (
         <div id="mobile-nav" className="fixed inset-x-0 top-[53px] bottom-0 z-20 overflow-y-auto border-b border-line bg-surface px-3 py-4 lg:hidden">

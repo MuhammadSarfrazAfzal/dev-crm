@@ -118,6 +118,10 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                       <div className="mt-2 space-y-1 text-sm">
                         <div className="flex items-center gap-2 tabular-nums"><Icon name="phone" className="size-3.5 text-subtle" />{formatPhone(l.phone) || <Dash />}</div>
                         <div className="flex min-w-0 items-center gap-2"><Icon name="mail" className="size-3.5 shrink-0 text-subtle" /><span className="truncate">{l.email ?? <Dash />}</span></div>
+                        <div className="flex min-w-0 items-center gap-2 text-xs text-muted">
+                          <Icon name="user" className="size-3.5 shrink-0 text-subtle" />
+                          <span>Assigned: <strong className={l.owner_name ? "font-medium text-fg-2" : "font-normal text-subtle"}>{l.owner_name ?? "-"}</strong></span>
+                        </div>
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-1">
                         <ProductTags interested={l.interested_in} bought={l.bought} />

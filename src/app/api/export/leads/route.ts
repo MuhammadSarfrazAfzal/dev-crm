@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   });
 
   const csv = toCsv(
-    ["Company", "Interested in", "Bought", "Contact", "Title", "Phone", "Email", "Website", "Address", "City", "State", "ZIP", "Source", "Area", "Owner", "Status", "Interest", "Call attempts", "Last outcome", "Last call (UTC)", "Next follow-up (UTC)", "Email status", "Suppression"],
+    ["Company", "Interested in", "Bought", "Contact", "Title", "Phone", "Email", "Website", "Address", "City", "State", "ZIP", "Source", "Area", "Assigned", "Status", "Interest", "Call attempts", "Last outcome", "Last call (UTC)", "Next follow-up (UTC)", "Email status", "Suppression"],
     rows.map((r) => [
       r.company_name,
       r.interested_in.map((p) => PRODUCT_LABEL[p]).join("; "),
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       r.postal_code,
       r.source,
       r.tags.join("; "),
-      r.owner_name ?? "Unassigned",
+      r.owner_name ?? "-",
       LEAD_STATUS_LABEL[r.status as LeadStatus],
       INTEREST_LABEL[r.interest as InterestLevel],
       r.call_attempts,

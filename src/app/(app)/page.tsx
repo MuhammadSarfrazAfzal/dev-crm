@@ -91,7 +91,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                       <th>City / state</th>
                       <th>Their time</th>
                       <th>Phone</th>
-                      {isAdmin && <th>Owner</th>}
+                      {isAdmin && <th>Assigned</th>}
                       <th className="text-right"><span className="sr-only">Action</span></th>
                     </tr>
                   </thead>
@@ -102,7 +102,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                         <td className="whitespace-nowrap">{[l.city, l.state].filter(Boolean).join(", ") || <span className="text-subtle">—</span>}</td>
                         <td><CallTimeCell timeZone={l.time_zone} state={l.state} /></td>
                         <td className="whitespace-nowrap tabular-nums">{formatPhone(l.phone) || <span className="text-subtle">—</span>}</td>
-                        {isAdmin && <td className="whitespace-nowrap">{l.owner_name ?? <span className="text-warning-fg">Unassigned</span>}</td>}
+                        {isAdmin && <td className="whitespace-nowrap">{l.owner_name ?? <span className="text-subtle">-</span>}</td>}
                         <td className="text-right"><Link href={`/leads/${l.id}`} className="btn-secondary btn-sm">Open <Icon name="arrowRight" className="size-3.5" /></Link></td>
                       </tr>
                     ))}
@@ -158,7 +158,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                       <th>Kind</th>
                       <th>Due ({user.view === "pk" ? "Pakistan time" : "shop time"})</th>
                       <th>Status</th>
-                      {isAdmin && <th>Owner</th>}
+                      {isAdmin && <th>Assigned</th>}
                       <th className="text-right"><span className="sr-only">Action</span></th>
                     </tr>
                   </thead>

@@ -57,7 +57,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
       <LeadsLiveRefresher />
       <PageHeader
         title="Leads"
-        subtitle={isAdmin ? "Every shop, each offered 8staros POS and wholesale" : "Leads assigned to you"}
+        subtitle={isAdmin ? "All discovery leads for POS development services" : "Leads assigned to you"}
         actions={
           <>
             <a href={`/api/export/leads${query ? `?${query}` : ""}`} className="btn-secondary"><Icon name="download" /> Export CSV</a>

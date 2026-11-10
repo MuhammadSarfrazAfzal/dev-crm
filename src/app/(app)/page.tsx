@@ -29,7 +29,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       <WhatsAppLiveRefresher />
       <PageHeader
         title={`Good ${greeting(user.timeZone)}, ${user.fullName.split(" ")[0]}`}
-        subtitle={isAdmin ? "Team overview: every shop is offered 8staros POS and wholesale" : "Your leads, calls and follow-ups"}
+        subtitle={isAdmin ? "Team overview: POS development discovery & closing pipeline" : "Your leads, calls and follow-ups"}
       />
       {sp.denied && <div className="mb-4"><Alert tone="red">That page is for admins only.</Alert></div>}
 

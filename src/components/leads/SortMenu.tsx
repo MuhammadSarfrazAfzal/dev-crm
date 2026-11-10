@@ -11,7 +11,7 @@ const OPTIONS = [
   { value: "last_call", label: "Longest since a call" },
   { value: "attempts:desc", label: "Most calls" },
   { value: "created:desc", label: "Newest leads" },
-  { value: "owner", label: "Owner" },
+  { value: "owner", label: "Assigned" },
   { value: "status", label: "Status" },
 ];
 

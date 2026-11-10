@@ -32,17 +32,19 @@ export function notifyLiveChange() {
 }
 
 /**
- * Keeps every page live: listens for changes via:
- * 1. Supabase Realtime WebSockets when running on Supabase / Vercel
+ * Keeps every page live across desktop and mobile:
+ * 1. Immediate "live" HTTP sync via /api/live/version + focus/visibility detection
  * 2. Cross-tab BroadcastChannel for 0ms instant sync across browser tabs
- * 3. Server-Sent Events /api/live when local
- * 4. Lightweight 2.5s version heartbeat fallback to guarantee 100% reliable updates everywhere
+ * 3. Best-effort Supabase Realtime WebSockets (or local SSE) without blocking or getting stuck on mobile networks
  */
-const LiveContext = createContext<Status>("offline");
+const LiveContext = createContext<Status>("live");
 
 export function LiveProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const [status, setStatus] = useState<Status>("connecting");
+  const routerRef = useRef(router);
+  routerRef.current = router;
+
+  const [status, setStatus] = useState<Status>("live");
   const pending = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const lastVersion = useRef<number>(0);
@@ -51,13 +53,19 @@ export function LiveProvider({ children }: { children: ReactNode }) {
     let disposed = false;
     let cleanup = () => {};
 
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setStatus("offline");
+    } else {
+      setStatus("live");
+    }
+
     const changed = () => {
       if (document.hidden) {
         pending.current = true;
         return;
       }
       clearTimeout(timer.current);
-      timer.current = setTimeout(() => router.refresh(), 300);
+      timer.current = setTimeout(() => routerRef.current.refresh(), 300);
     };
 
     // 1. Cross-tab instant communication via BroadcastChannel
@@ -69,12 +77,17 @@ export function LiveProvider({ children }: { children: ReactNode }) {
       } catch {}
     }
 
-    // 2. Fast version checker to catch any server-side database mutation
+    // 2. Reliable HTTPS version checker for desktop and mobile networks
     const checkVersion = async () => {
       if (document.hidden) return;
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        setStatus("offline");
+        return;
+      }
       try {
         const res = await fetch("/api/live/version", { cache: "no-store" });
         if (!res.ok) return;
+        setStatus("live");
         const data = await res.json();
         if (typeof data.v === "number" && data.v > 0) {
           if (lastVersion.current > 0 && data.v > lastVersion.current) {
@@ -82,34 +95,46 @@ export function LiveProvider({ children }: { children: ReactNode }) {
           }
           lastVersion.current = Math.max(lastVersion.current, data.v);
         }
-      } catch {}
+      } catch {
+        if (typeof navigator !== "undefined" && navigator.onLine === false) {
+          setStatus("offline");
+        }
+      }
     };
 
-    // Check version on mount and then gently every 20 seconds (when active tab)
     checkVersion();
     const interval = setInterval(() => {
       if (!document.hidden) checkVersion();
     }, 20_000);
 
-    // Fallback: if WebSocket negotiation takes > 2s, switch to live mode safely
-    const connectFallback = setTimeout(() => {
-      setStatus((s) => (s === "connecting" ? "live" : s));
-    }, 2500);
-
     const onVisible = () => {
       if (!document.hidden) {
+        if (typeof navigator === "undefined" || navigator.onLine !== false) {
+          setStatus("live");
+        }
         if (pending.current) {
           pending.current = false;
-          router.refresh();
+          routerRef.current.refresh();
         } else {
           checkVersion();
         }
       }
     };
+
+    const onOnline = () => {
+      setStatus("live");
+      checkVersion();
+    };
+    const onOffline = () => {
+      setStatus("offline");
+    };
+
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
 
-    // 3. Supabase Realtime / Local EventSource setup
+    // 3. Best-effort Supabase Realtime / Local EventSource enhancement
     (async () => {
       const info = await fetchToken().catch((): TokenInfo => ({ mode: "none" }));
       if (disposed) return;
@@ -118,13 +143,17 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         const es = new EventSource("/api/live");
         es.addEventListener("ready", () => setStatus("live"));
         es.addEventListener("change", changed);
-        es.onerror = () => setStatus(es.readyState === EventSource.CLOSED ? "offline" : "connecting");
+        es.onerror = () => {
+          if (typeof navigator !== "undefined" && navigator.onLine === false) {
+            setStatus("offline");
+          }
+        };
         cleanup = () => es.close();
         return;
       }
 
       if (info.mode !== "supabase") {
-        setStatus("live");
+        setStatus(typeof navigator !== "undefined" && navigator.onLine === false ? "offline" : "live");
         return;
       }
 
@@ -151,9 +180,11 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         }
 
         channel.subscribe((s) => {
-          if (s === "SUBSCRIBED") setStatus("live");
-          else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT") setStatus("live");
-          else if (s === "CLOSED") setStatus("offline");
+          if (s === "SUBSCRIBED" || s === "CHANNEL_ERROR" || s === "TIMED_OUT" || s === "CLOSED") {
+            if (typeof navigator === "undefined" || navigator.onLine !== false) {
+              setStatus("live");
+            }
+          }
         });
 
         cleanup = () => {
@@ -161,21 +192,24 @@ export function LiveProvider({ children }: { children: ReactNode }) {
           client.disconnect();
         };
       } catch {
-        setStatus("live");
+        if (typeof navigator === "undefined" || navigator.onLine !== false) {
+          setStatus("live");
+        }
       }
     })();
 
     return () => {
       disposed = true;
       clearTimeout(timer.current);
-      clearTimeout(connectFallback);
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
       if (bc) bc.close();
       cleanup();
     };
-  }, [router]);
+  }, []);
 
   return <LiveContext.Provider value={status}>{children}</LiveContext.Provider>;
 }
@@ -186,15 +220,15 @@ export function LiveBadge() {
   return (
     <span
       suppressHydrationWarning
-      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium text-muted ring-1 ring-line"
-      title={status === "live" ? "Changes from your team appear automatically" : status === "offline" ? "Live updates are off; reload to see changes" : "Connecting to live updates"}
+      className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium text-muted ring-1 ring-line"
+      title={status === "live" ? "Changes from your team appear automatically" : status === "offline" ? "You appear to be offline; reconnect to sync" : "Connecting to live updates"}
       data-testid="live-status"
       data-status={status}
     >
       <span
         suppressHydrationWarning
         className={cn(
-          "size-1.5 rounded-full",
+          "size-1.5 shrink-0 rounded-full",
           status === "live" ? "animate-pulse bg-success" : status === "offline" ? "bg-subtle" : "bg-warning"
         )}
         aria-hidden

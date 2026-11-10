@@ -13,11 +13,16 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   const cfg = supabaseConfig();
   if (cfg) {
-    const t = usesSupabaseAuth() ? await getRealtimeToken(user.id) : null;
     const clientPublicKey =
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
       process.env.SUPABASE_PUBLISHABLE_KEY ??
-      cfg.anonKey;
+      (cfg.anonKey.startsWith("sb_secret_") ? null : cfg.anonKey);
+
+    if (!clientPublicKey) {
+      return NextResponse.json({ mode: "none", reason: "polling" }, { headers: { "cache-control": "no-store" } });
+    }
+
+    const t = usesSupabaseAuth() ? await getRealtimeToken(user.id) : null;
     return NextResponse.json(
       {
         mode: "supabase",

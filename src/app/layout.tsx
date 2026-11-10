@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "sw
 
 export const metadata: Metadata = {
   title: { default: "Devsolutionspk Sales CRM", template: "%s · Devsolutionspk Sales CRM" },
-  description: "Outreach CRM for 8staros POS and Star Cellular Wholesale",
+  description: "POS Development Services · Discovery & Closing CRM",
 };
 
 export const viewport: Viewport = {

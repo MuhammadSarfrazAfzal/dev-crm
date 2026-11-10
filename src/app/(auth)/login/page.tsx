@@ -34,7 +34,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             ))}
           </ul>
         </div>
-        <p className="text-xs text-white/60">8staros POS · Star Cellular Wholesale</p>
+        <p className="text-xs text-white/60">Devsolutionspk · POS Development Services</p>
         <div className="pointer-events-none absolute -right-24 -bottom-24 size-96 rounded-full bg-white/10 blur-3xl" aria-hidden />
       </section>
 

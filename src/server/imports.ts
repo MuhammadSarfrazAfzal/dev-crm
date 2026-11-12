@@ -289,58 +289,49 @@ export async function approveImport(tx: Tx, user: CurrentUser, importId: string,
     result.reasons[why] = (result.reasons[why] ?? 0) + 1;
   };
 
-  // Existing companies some rows matched: which ones this user can see, and which already have a lead here.
-  const matched = [...new Set(rows.map((r) => r.duplicate_of_company as string | null).filter(Boolean))] as string[];
-  const [visible, withLead] = matched.length
-    ? await Promise.all([
-        tx`select id from companies where id = any(${matched}::uuid[])`,
-        tx`select id, company_id from leads where company_id = any(${matched}::uuid[])`,
-      ])
-    : [[], []];
-  const visibleIds = new Set(visible.map((r) => r.id as string));
-  const companyToLead = new Map<string, string>(withLead.map((r) => [r.company_id as string, r.id as string]));
+  // Real-time duplicate check against database right before insertion
+  const latestExisting = await findExisting(rows.map((r) => r.normalized as NormalizedRow));
 
   const companies: Record<string, unknown>[] = [];
-  const companiesToUpdate: { id: string; address?: string | null; city?: string | null; state?: string | null; postal_code?: string | null; website?: string | null; website_domain?: string | null; time_zone?: string | null }[] = [];
   const contacts: Record<string, unknown>[] = [];
   const leadsToInsert: Record<string, unknown>[] = [];
-  const leadsToUpdate: { id: string; contact_id: string | null }[] = [];
   const links: { id: string; lead_id: string }[] = [];
+  const newlySkippedIds: string[] = [];
+
   for (const r of rows) {
     const n = r.normalized as NormalizedRow;
     const issues = r.issues as string[];
     if (issues.some((i) => BLOCKING_ISSUES.has(i)) || !n.company) {
+      newlySkippedIds.push(r.id);
       skip("missing company or contact details");
       continue;
     }
 
-    let companyId: string;
-    let isAttached = false;
-    if (r.duplicate_of_company) {
-      if (user.role !== "admin" && !visibleIds.has(r.duplicate_of_company)) {
-        skip("shop belongs to another rep (ask an admin)");
-        continue;
-      }
-      companyId = r.duplicate_of_company;
-      isAttached = true;
-      companiesToUpdate.push({
-        id: companyId,
-        address: n.address,
-        city: n.city,
-        state: n.state,
-        postal_code: n.postal_code,
-        website: n.website,
-        website_domain: n.website_domain,
-        time_zone: n.time_zone,
-      });
-    } else {
-      companyId = randomUUID();
-      companies.push({
-        id: companyId, name: n.company, website: n.website, website_domain: n.website_domain, address: n.address, city: n.city,
-        state: n.state, postal_code: n.postal_code, time_zone: n.time_zone, phones: n.contact_name ? [] : n.phones,
-        emails: n.contact_name ? [] : n.emails, notes: n.notes, source: n.source ?? null, tags: n.area ? [n.area] : [],
-      });
+    if (
+      r.duplicate_of_company ||
+      r.duplicate_of_lead ||
+      r.duplicate_in_file !== null ||
+      issues.includes("duplicate_existing") ||
+      issues.includes("duplicate_in_file")
+    ) {
+      newlySkippedIds.push(r.id);
+      skip("already exists in the CRM");
+      continue;
     }
+
+    const realtimeMatch = latestExisting(n);
+    if (realtimeMatch) {
+      newlySkippedIds.push(r.id);
+      skip("already exists in the CRM");
+      continue;
+    }
+
+    const companyId = randomUUID();
+    companies.push({
+      id: companyId, name: n.company, website: n.website, website_domain: n.website_domain, address: n.address, city: n.city,
+      state: n.state, postal_code: n.postal_code, time_zone: n.time_zone, phones: n.contact_name ? [] : n.phones,
+      emails: n.contact_name ? [] : n.emails, notes: n.notes, source: n.source ?? null, tags: n.area ? [n.area] : [],
+    });
 
     let contactId: string | null = null;
     if (n.contact_name) {
@@ -348,19 +339,14 @@ export async function approveImport(tx: Tx, user: CurrentUser, importId: string,
       contacts.push({ id: contactId, company_id: companyId, full_name: n.contact_name, title: n.title, phones: n.phones, emails: n.emails });
     }
 
-    const existingLeadId = (r.duplicate_of_lead as string | null) ?? companyToLead.get(companyId) ?? null;
-    if (existingLeadId) {
-      leadsToUpdate.push({ id: existingLeadId, contact_id: contactId });
-      links.push({ id: r.id, lead_id: existingLeadId });
-      result.attached++;
-    } else {
-      const leadId = randomUUID();
-      leadsToInsert.push({ id: leadId, company_id: companyId, primary_contact_id: contactId });
-      companyToLead.set(companyId, leadId);
-      links.push({ id: r.id, lead_id: leadId });
-      if (isAttached) result.attached++;
-      else result.created++;
-    }
+    const leadId = randomUUID();
+    leadsToInsert.push({ id: leadId, company_id: companyId, primary_contact_id: contactId });
+    links.push({ id: r.id, lead_id: leadId });
+    result.created++;
+  }
+
+  if (newlySkippedIds.length > 0) {
+    await tx`update import_rows set decision = 'skip' where import_id = ${importId} and id = any(${newlySkippedIds}::uuid[])`;
   }
 
   const chunks = <T,>(xs: T[]) => Array.from({ length: Math.ceil(xs.length / BATCH) }, (_, i) => xs.slice(i * BATCH, (i + 1) * BATCH));
@@ -373,21 +359,6 @@ export async function approveImport(tx: Tx, user: CurrentUser, importId: string,
       from jsonb_to_recordset(${tx.json(c as never)}) as x(id uuid, name text, website text, website_domain text, address text, city text,
         state text, postal_code text, time_zone text, phones jsonb, emails jsonb, notes text, source text, tags text[])`;
   }
-  const uniqueCompaniesToUpdate = Array.from(new Map(companiesToUpdate.map((c) => [c.id, c])).values());
-  for (const c of chunks(uniqueCompaniesToUpdate)) {
-    await tx`update companies comp
-      set address = coalesce(comp.address, x.address),
-          city = coalesce(comp.city, x.city),
-          state = coalesce(comp.state, x.state),
-          postal_code = coalesce(comp.postal_code, x.postal_code),
-          website = coalesce(comp.website, x.website),
-          website_domain = coalesce(comp.website_domain, x.website_domain),
-          time_zone = coalesce(comp.time_zone, x.time_zone),
-          updated_at = now()
-      from jsonb_to_recordset(${tx.json(c as never)}) as x(id uuid, address text, city text, state text, postal_code text,
-        website text, website_domain text, time_zone text)
-      where comp.id = x.id`;
-  }
   for (const c of chunks(contacts)) {
     await tx`insert into contacts (id, company_id, full_name, title, phones, emails, is_primary, import_id, created_by)
       select x.id, x.company_id, x.full_name, x.title, x.phones, x.emails, true, ${importId}, ${user.id}
@@ -398,16 +369,6 @@ export async function approveImport(tx: Tx, user: CurrentUser, importId: string,
       select x.id, x.company_id, x.primary_contact_id, ${ownerId}, 'import', ${importId}, ${user.id}
       from jsonb_to_recordset(${tx.json(c as never)}) as x(id uuid, company_id uuid, primary_contact_id uuid)`;
   }
-  const uniqueLeadsToUpdate = Array.from(new Map(leadsToUpdate.map((l) => [l.id, l])).values());
-  for (const c of chunks(uniqueLeadsToUpdate)) {
-    await tx`update leads l
-      set owner_id = ${ownerId},
-          import_id = ${importId},
-          primary_contact_id = coalesce(x.contact_id, l.primary_contact_id),
-          updated_at = now()
-      from jsonb_to_recordset(${tx.json(c as never)}) as x(id uuid, contact_id uuid)
-      where l.id = x.id`;
-  }
   await Promise.all(
     chunks(links).map((c) => tx`update import_rows r set lead_id = x.lead_id
       from jsonb_to_recordset(${tx.json(c as never)}) as x(id uuid, lead_id uuid) where r.id = x.id and r.import_id = ${importId}`),
@@ -416,7 +377,7 @@ export async function approveImport(tx: Tx, user: CurrentUser, importId: string,
   const [{ total_skipped }] = await tx`select count(*)::int as total_skipped from import_rows where import_id = ${importId} and decision = 'skip'`;
   await Promise.all([
     tx`update imports set status = 'approved', approved_by = ${user.id}, approved_at = now(), assign_to = ${ownerId},
-      approved_count = ${result.created + result.attached}, skipped_count = ${result.skipped + total_skipped}
+      approved_count = ${result.created}, skipped_count = ${total_skipped}
       where id = ${importId}`,
     tx`select app.log_audit('import.approved', 'imports', ${importId}, ${tx.json({ ...result, owner_id: ownerId })})`,
   ]);

@@ -25,7 +25,7 @@ export default async function ImportPage({ params, searchParams }: { params: Pro
   const { id } = await params;
   const sp = await searchParams;
   if (!isUuid(id)) notFound();
-  const show = sp.show === "review" || sp.show === "skipped" ? sp.show : "all";
+  const show = sp.show === "review" || sp.show === "skipped" || sp.show === "duplicates" ? sp.show : "all";
   const page = Math.max(1, Number(sp.page) || 1);
 
   const data = await withUserDb(async (tx, user) => {
@@ -33,13 +33,15 @@ export default async function ImportPage({ params, searchParams }: { params: Pro
       from imports i left join profiles p on p.id = i.uploaded_by left join profiles a on a.id = i.assign_to where i.id = ${id}`;
     if (!imp) return null;
     const filter =
-      show === "review" ? tx`and (confidence < ${REVIEW_CONFIDENCE} or issues && ${REVIEW_ISSUES}::text[])` : show === "skipped" ? tx`and decision = 'skip'` : tx``;
+      show === "review" ? tx`and (confidence < ${REVIEW_CONFIDENCE} or issues && ${REVIEW_ISSUES}::text[])` :
+      show === "duplicates" ? tx`and (duplicate_of_company is not null or duplicate_of_lead is not null or duplicate_in_file is not null or issues && array['duplicate_existing','duplicate_in_file']::text[])` :
+      show === "skipped" ? tx`and decision = 'skip'` : tx``;
     const [[stats], [{ n }], rows, samples, needsLook, [doc], owners] = await Promise.all([
       tx`select
         count(*)::int as total,
         count(*) filter (where decision = 'include')::int as included,
         count(*) filter (where decision = 'skip')::int as skipped,
-        count(*) filter (where duplicate_of_company is not null or duplicate_in_file is not null)::int as duplicates,
+        count(*) filter (where duplicate_of_company is not null or duplicate_of_lead is not null or duplicate_in_file is not null or issues && array['duplicate_existing','duplicate_in_file']::text[])::int as duplicates,
         count(*) filter (where confidence < ${REVIEW_CONFIDENCE} or issues && ${REVIEW_ISSUES}::text[])::int as review,
         count(*) filter (where issues && array['missing_company','no_contact_method'])::int as blocked,
         count(*) filter (where jsonb_array_length(coalesce(normalized -> 'phones', '[]')) > 0)::int as with_phone,
@@ -121,8 +123,8 @@ export default async function ImportPage({ params, searchParams }: { params: Pro
         <Stat label="Rows found" value={stats.total} icon="file" />
         <Stat label={editable ? "Will import" : "Imported"} value={editable ? stats.included : imp.approved_count} tone="green" icon="check" />
         <Stat label="Needs a look" value={stats.review} tone="amber" hint="Unclear or guessed rows" href={`/imports/${imp.id}?show=review#needs-look`} icon="alert" />
-        <Stat label="Duplicates" value={stats.duplicates} tone="violet" icon="copy" />
-        <Stat label="Unusable" value={stats.blocked} tone="red" hint="No name or contact" icon="ban" />
+        <Stat label="Already Added" value={stats.duplicates} tone="red" hint="Cannot be added" href={`/imports/${imp.id}${qs({ show: "duplicates", page: undefined })}`} icon="ban" />
+        <Stat label="Unusable" value={stats.blocked} tone="slate" hint="No name or contact" icon="ban" />
       </div>
 
       <Card title="What was found" description="How many rows have each kind of detail. Empty cells in the table mean the file didn't include that detail." className="mb-6">
@@ -221,9 +223,9 @@ export default async function ImportPage({ params, searchParams }: { params: Pro
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
             <Segmented
               label="Rows to show"
-              items={(["all", "review", "skipped"] as const).map((sh) => ({
+              items={(["all", "duplicates", "review", "skipped"] as const).map((sh) => ({
                 href: `/imports/${imp.id}${qs({ show: sh === "all" ? undefined : sh, page: undefined })}`,
-                label: sh === "all" ? "All rows" : sh === "review" ? "Needs a look" : "Skipped",
+                label: sh === "all" ? "All rows" : sh === "duplicates" ? `Already added (${stats.duplicates})` : sh === "review" ? "Needs a look" : "Skipped",
                 active: show === sh,
               }))}
             />
@@ -257,14 +259,43 @@ export default async function ImportPage({ params, searchParams }: { params: Pro
                     const fc = ((r.raw as RawRow).edited ? {} : (r.raw as RawRow).field_confidence) ?? {};
                     const unsure = (k: string) => (fc[k] !== undefined && fc[k] < 0.75 ? <span className="ml-1 text-warning-fg" title="Guessed — check it">?</span> : null);
                     const blocked = issues.some((i) => BLOCKING_ISSUES.has(i));
+                    const isExistingDuplicate = Boolean(r.duplicate_of_company || r.duplicate_of_lead || issues.includes("duplicate_existing"));
+                    const isFileDuplicate = Boolean(r.duplicate_in_file !== null || issues.includes("duplicate_in_file"));
+                    const isDuplicate = isExistingDuplicate || isFileDuplicate;
+                    const cannotAdd = blocked || isDuplicate;
                     const conf = Number(r.confidence);
-                    const skipped = r.decision === "skip";
+                    const skipped = r.decision === "skip" || cannotAdd;
                     return (
-                      <tr key={r.id} className={skipped ? "bg-surface-2 text-muted" : "hover:bg-surface-2/60"}>
-                        <td className={`sticky left-0 z-10 ${skipped ? "bg-surface-2" : "bg-surface"}`}>
+                      <tr key={r.id} className={cannotAdd ? "bg-red-500/[0.03] text-muted hover:bg-red-500/[0.07]" : skipped ? "bg-surface-2 text-muted" : "hover:bg-surface-2/60"}>
+                        <td className={`sticky left-0 z-10 ${cannotAdd ? "bg-red-500/[0.04]" : skipped ? "bg-surface-2" : "bg-surface"}`}>
                           <input type="hidden" name="rowIds" value={r.id} />
                           {editable ? (
-                            <input type="checkbox" name="include" value={r.id} defaultChecked={r.decision === "include"} disabled={blocked} aria-label={`Import row ${r.row_index}`} className="mt-0.5 size-4" />
+                            isExistingDuplicate ? (
+                              <div className="flex flex-col items-start gap-1 py-1">
+                                <span className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-danger-fg ring-1 ring-red-500/30 whitespace-nowrap" title="Already added in CRM — cannot be added again">
+                                  <Icon name="ban" className="size-3 shrink-0" />
+                                  <span>Already added</span>
+                                </span>
+                                {r.duplicate_of_lead && (
+                                  <Link href={`/leads/${r.duplicate_of_lead}`} target="_blank" className="text-[10px] text-brand-fg underline hover:text-brand whitespace-nowrap" title="Open existing lead in new tab">
+                                    View lead
+                                  </Link>
+                                )}
+                              </div>
+                            ) : isFileDuplicate ? (
+                              <div className="flex flex-col items-start gap-1 py-1">
+                                <span className="inline-flex items-center gap-1 rounded bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-violet-500 dark:text-violet-400 ring-1 ring-violet-500/30 whitespace-nowrap" title={`Duplicate of row ${r.duplicate_in_file}`}>
+                                  <Icon name="copy" className="size-3 shrink-0" />
+                                  <span>Duplicate</span>
+                                </span>
+                              </div>
+                            ) : blocked ? (
+                              <div className="flex items-center py-1 text-muted" title="Missing company name or contact method">
+                                <Icon name="ban" className="size-4 text-danger-fg" />
+                              </div>
+                            ) : (
+                              <input type="checkbox" name="include" value={r.id} defaultChecked={r.decision === "include"} aria-label={`Import row ${r.row_index}`} className="mt-0.5 size-4" />
+                            )
                           ) : r.lead_id ? (
                             <Link href={`/leads/${r.lead_id}`} className="link text-xs">Open</Link>
                           ) : <span className="text-xs">skipped</span>}
@@ -285,8 +316,8 @@ export default async function ImportPage({ params, searchParams }: { params: Pro
                           <div className="flex flex-wrap gap-1">
                             <Badge tone={conf >= 0.85 ? "green" : conf >= REVIEW_CONFIDENCE ? "amber" : "red"} title="Confidence">{Math.round(conf * 100)}%</Badge>
                             {issues.map((i) => (
-                              <Badge key={i} tone={BLOCKING_ISSUES.has(i) ? "red" : i.startsWith("duplicate") ? "violet" : "amber"}>
-                                {i === "duplicate_in_file" ? `Same as row ${r.duplicate_in_file}` : i === "duplicate_existing" && r.duplicate_of_lead ? "Already a lead" : ISSUE_LABEL[i] ?? i}
+                              <Badge key={i} tone={BLOCKING_ISSUES.has(i) ? "red" : i === "duplicate_existing" ? "red" : i.startsWith("duplicate") ? "violet" : "amber"}>
+                                {i === "duplicate_in_file" ? `Same as row ${r.duplicate_in_file}` : i === "duplicate_existing" ? (r.duplicate_of_lead ? "Already in CRM (Lead exists)" : "Already added in CRM") : ISSUE_LABEL[i] ?? i}
                               </Badge>
                             ))}
                           </div>
@@ -322,7 +353,10 @@ export default async function ImportPage({ params, searchParams }: { params: Pro
               ) : (
                 <span>Approved rows become leads assigned to you.</span>
               )}
-              <span className="hidden text-xs xl:inline" title="Every lead keeps a link to this import and the original file.">Rows already in the CRM are skipped.</span>
+              <span className="text-xs text-danger-fg font-medium flex items-center gap-1.5" title="Duplicate leads and shops already in the CRM cannot be imported.">
+                <Icon name="ban" className="size-3.5 shrink-0" />
+                Leads already in CRM cannot be added and are automatically skipped.
+              </span>
             </div>
             <div className="flex flex-wrap gap-2">
               <SubmitButton name="intent" value="reject" pendingText="Working…" className="btn-danger">Discard</SubmitButton>

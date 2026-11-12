@@ -138,8 +138,10 @@ export async function recompute(
     const match = existing(n.row);
     if (match) issues.push("duplicate_existing");
     const blocked = issues.some((i) => BLOCKING_ISSUES.has(i));
-    const auto = blocked || dupInFile !== null || match?.leadId ? "skip" : "include";
-    const decision = blocked ? "skip" : preserveDecisions ? (previous.get(n.id) ?? auto) : auto;
+    const isDuplicate = match !== null || dupInFile !== null;
+    const auto = blocked || isDuplicate ? "skip" : "include";
+    // Duplicates and blocked rows are never permitted to be included
+    const decision = blocked || isDuplicate ? "skip" : preserveDecisions ? (previous.get(n.id) ?? auto) : auto;
     return {
       id: n.id,
       normalized: n.row,

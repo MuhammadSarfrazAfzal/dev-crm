@@ -47,8 +47,23 @@ export async function saveDecisions(form: FormData) {
       if (visible.length) {
         const inc = visible.filter((v) => included.has(v));
         const skip = visible.filter((v) => !included.has(v));
-        if (inc.length) await tx`update import_rows set decision = 'include' where import_id = ${id} and id = any(${inc}::uuid[])`;
+        if (inc.length) {
+          await tx`update import_rows
+            set decision = 'include'
+            where import_id = ${id}
+              and id = any(${inc}::uuid[])
+              and duplicate_of_company is null
+              and duplicate_of_lead is null
+              and duplicate_in_file is null
+              and not (issues && array['missing_company','no_contact_method','duplicate_existing','duplicate_in_file']::text[])`;
+        }
         if (skip.length) await tx`update import_rows set decision = 'skip' where import_id = ${id} and id = any(${skip}::uuid[])`;
+        // Ensure any duplicates or unusable rows always stay skipped
+        await tx`update import_rows
+          set decision = 'skip'
+          where import_id = ${id}
+            and (duplicate_of_company is not null or duplicate_of_lead is not null or duplicate_in_file is not null or issues && array['missing_company','no_contact_method','duplicate_existing','duplicate_in_file']::text[])
+            and decision <> 'skip'`;
       }
       if (intent === "approve") {
         const owner = user.role === "admin" ? (String(form.get("assignTo") ?? "") || imp.assign_to || user.id) : user.id;

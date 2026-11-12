@@ -64,7 +64,14 @@ export default async function ImportsPage() {
                     </td>
                     <td><Badge tone={st?.tone ?? "slate"} dot>{st?.label ?? r.status}</Badge></td>
                     <td className="text-right tabular-nums">{r.row_count}</td>
-                    <td className="hidden text-right tabular-nums md:table-cell">{r.status === "approved" ? r.approved_count : "—"}</td>
+                    <td className="hidden text-right tabular-nums md:table-cell">
+                      {r.status === "approved" ? (
+                        <span>
+                          {r.approved_count} added
+                          {r.skipped_count > 0 && <span className="block text-xs text-muted">({r.skipped_count} skipped)</span>}
+                        </span>
+                      ) : "—"}
+                    </td>
                     {user.role === "admin" && <td className="hidden whitespace-nowrap md:table-cell">{r.uploader}</td>}
                     <td className="whitespace-nowrap text-muted">{relativeTime(r.created_at)}</td>
                     <td className="text-right whitespace-nowrap">

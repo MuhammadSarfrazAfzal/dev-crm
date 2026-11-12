@@ -24,7 +24,7 @@ export function ImportForm({ accept, owners, isAdmin, userId }: { accept: string
             <input id="assignTo" disabled value="You" className="input" />
           )}
         </div>
-        <p className="self-end pb-2 text-xs text-muted">Each shop is offered both 8staros POS and wholesale; what they want is noted on the call.</p>
+        <p className="self-end pb-2 text-xs text-muted">Each shop is offered POS Development services and wholesale; what they want is noted on the call.</p>
       </div>
 
       <div className="inline-flex rounded-lg border border-line bg-surface-2 p-0.5 text-sm" role="tablist">
@@ -79,7 +79,7 @@ export function ImportForm({ accept, owners, isAdmin, userId }: { accept: string
       )}
 
       <div className="flex flex-col gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
-        <p className="flex items-center gap-2 text-xs text-muted"><Icon name="shield" className="size-3.5" /> Nothing is added to your leads until you review the preview and approve it.</p>
+        <p className="flex items-center gap-2 text-xs text-muted"><Icon name="shield" className="size-3.5" /> Nothing is added until you review. Leads already in the CRM are automatically detected and cannot be re-added.</p>
         <button type="submit" disabled={busy} className="btn-primary">{busy ? "Reading the file…" : <>Read and preview <Icon name="arrowRight" className="size-4" /></>}</button>
       </div>
       {busy && <p className="text-right text-xs text-muted">Scans and photos can take up to a minute.</p>}

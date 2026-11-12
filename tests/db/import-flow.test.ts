@@ -61,6 +61,45 @@ describe("import pipeline against the database", () => {
     await expect(appDb.asUser(riley.id, (tx) => approveImport(tx, riley, importId, riley.id))).rejects.toThrow(/not found/i);
   });
 
+  it("never imports duplicate leads that already exist in the system", async () => {
+    // Find an existing lead in the CRM
+    const [existing] = await db.sql`select c.name, c.city, c.state, c.phones -> 0 ->> 'e164' as phone,
+      (select ct.emails -> 0 ->> 'address' from contacts ct where ct.company_id = c.id and ct.emails <> '[]'::jsonb limit 1) as email
+      from leads l join companies c on c.id = l.company_id where c.phones <> '[]'::jsonb limit 1`;
+
+    const text = [
+      `${existing.name} | ${existing.phone}`,
+      "Brand New Unique Shop 999 | Austin, TX | 512-555-9876 | contact999@unique.example.com",
+    ].join("\n");
+
+    const importId = await createImport({ user: sam, assignTo: sam.id, text });
+    const rows = await db.sql`select row_index, normalized, issues, decision, duplicate_of_company, duplicate_of_lead
+      from import_rows where import_id = ${importId} order by row_index`;
+
+    expect(rows).toHaveLength(2);
+    // Existing lead must be flagged as duplicate and default to skip
+    expect(rows[0].issues).toContain("duplicate_existing");
+    expect(rows[0].decision).toBe("skip");
+
+    // New unique lead should be included
+    expect(rows[1].decision).toBe("include");
+
+    // If someone forces the duplicate row to include, approveImport still strictly skips it
+    await db.sql`update import_rows set decision = 'include' where import_id = ${importId} and row_index = 1`;
+    const result = await appDb.asUser(sam.id, (tx) => approveImport(tx, sam, importId, sam.id));
+    // Exactly 1 new lead created, duplicate lead skipped and NOT added
+    expect(result.created).toBe(1);
+    expect(result.skipped).toBe(1);
+
+    const [imp] = await db.sql`select approved_count, skipped_count from imports where id = ${importId}`;
+    expect(imp.approved_count).toBe(1);
+    expect(imp.skipped_count).toBe(1);
+
+    // Verify in database that existing shop was not duplicated in leads
+    const [{ n: totalLeadsForExisting }] = await db.sql`select count(*)::int as n from leads l join companies c on c.id = l.company_id where c.name = ${existing.name}`;
+    expect(totalLeadsForExisting).toBe(1);
+  });
+
   it("rejects unusable input with a clear message", async () => {
     await expect(createImport({ user: sam, assignTo: sam.id, text: "hello there" })).rejects.toThrow(/No businesses/);
     await expect(createImport({ user: sam, assignTo: sam.id, file: { name: "x.png", data: new TextEncoder().encode("nope") } })).rejects.toThrow(/match/);

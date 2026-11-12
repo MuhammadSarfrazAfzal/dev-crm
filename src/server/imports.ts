@@ -167,28 +167,95 @@ export async function recompute(
 }
 
 async function findExisting(rows: NormalizedRow[]) {
-  const phones = [...new Set(rows.flatMap((r) => r.phones.map((p) => p.e164)))];
+  const phones = [...new Set(rows.flatMap((r) => r.phones.map((p) => p.e164)).filter(Boolean))];
+  const emails = [...new Set(rows.flatMap((r) => r.emails.map((e) => e.address.toLowerCase().trim())).filter(Boolean))];
   const names = [...new Set(rows.map((r) => r.company).filter(Boolean) as string[])];
+
+  if (phones.length === 0 && emails.length === 0 && names.length === 0) {
+    return (_row: NormalizedRow) => null;
+  }
+
   const found = await asService(
     (tx) => tx`
-      with keys as (select app.name_key(n) as k from unnest(${names}::text[]) n)
-      select c.id, c.phone_keys, c.name_key, c.state, c.city,
-        (select l.id from leads l where l.company_id = c.id) as lead_id
+      with keys as (
+        select app.name_key(n) as k from unnest(${names}::text[]) n where n is not null and trim(n) <> ''
+      ),
+      ct_matches as (
+        select ct.company_id
+        from contacts ct
+        where (${phones}::text[] <> '{}' and ct.phone_keys && ${phones}::text[])
+           or (${emails}::text[] <> '{}' and exists (
+                select 1 from jsonb_array_elements(case when jsonb_typeof(ct.emails) = 'array' then ct.emails else '[]'::jsonb end) em
+                where lower(trim(coalesce(em ->> 'address', ''))) = any(${emails}::text[])
+              ))
+      )
+      select c.id, c.name, c.name_key, c.state, c.city,
+        coalesce(c.phone_keys, '{}') as phone_keys,
+        (
+          select coalesce(array_agg(distinct k), '{}')
+          from (
+            select unnest(c.phone_keys) as k
+            union
+            select unnest(ct.phone_keys) as k from contacts ct where ct.company_id = c.id
+          ) s
+          where k is not null
+        ) as all_phone_keys,
+        (
+          select coalesce(array_agg(distinct lower(trim(em ->> 'address'))), '{}')
+          from (
+            select em from jsonb_array_elements(case when jsonb_typeof(c.emails) = 'array' then c.emails else '[]'::jsonb end) em
+            union all
+            select em from contacts ct, jsonb_array_elements(case when jsonb_typeof(ct.emails) = 'array' then ct.emails else '[]'::jsonb end) em
+            where ct.company_id = c.id
+          ) ems(em)
+          where coalesce(em ->> 'address', '') <> ''
+        ) as all_email_keys,
+        (select l.id from leads l where l.company_id = c.id limit 1) as lead_id
       from companies c
-      where c.phone_keys && ${phones}::text[]
-         or c.name_key in (select k from keys)`,
+      where (${phones}::text[] <> '{}' and c.phone_keys && ${phones}::text[])
+         or (${names}::text[] <> '{}' and c.name_key in (select k from keys where k is not null and length(k) > 0))
+         or (${emails}::text[] <> '{}' and exists (
+              select 1 from jsonb_array_elements(case when jsonb_typeof(c.emails) = 'array' then c.emails else '[]'::jsonb end) em
+              where lower(trim(coalesce(em ->> 'address', ''))) = any(${emails}::text[])
+            ))
+         or c.id in (select company_id from ct_matches)`,
   );
+
   const nameKey = (s: string) =>
     s.toLowerCase().replace(/\b(inc|llc|l\.l\.c|ltd|co|corp|corporation|company)\b\.?/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+
   return (row: NormalizedRow): { companyId: string; leadId: string | null } | null => {
-    const hit = found.find(
-      (c) =>
-        // Same phone, or the same name in the same city and state. A shared website or
-        // listing host never makes two shops the same (chains share a domain).
-        row.phones.some((p) => (c.phone_keys as string[]).includes(p.e164)) ||
-        (row.company && c.name_key === nameKey(row.company) && (!row.state || !c.state || c.state === row.state) &&
-          (!row.city || !c.city || String(c.city).toLowerCase() === row.city.toLowerCase())),
-    );
+    const rowPhones = row.phones.map((p) => p.e164).filter(Boolean);
+    const rowEmails = row.emails.map((e) => e.address.toLowerCase().trim()).filter(Boolean);
+    const rowNameKey = row.company ? nameKey(row.company) : null;
+    const rowState = row.state ? row.state.toUpperCase() : null;
+    const rowCity = row.city ? row.city.toLowerCase().trim() : null;
+
+    const hit = found.find((c) => {
+      const companyPhones = ((c.all_phone_keys as string[]) || (c.phone_keys as string[]) || []).filter(Boolean);
+      const companyEmails = ((c.all_email_keys as string[]) || []).filter(Boolean);
+      const cState = c.state ? String(c.state).toUpperCase() : null;
+      const cCity = c.city ? String(c.city).toLowerCase().trim() : null;
+
+      // 1. Exact phone match (e164 or last 10 digits)
+      if (rowPhones.some((p) => companyPhones.includes(p))) return true;
+      const rowDigits = rowPhones.map((p) => p.replace(/\D/g, "").slice(-10)).filter((d) => d.length === 10);
+      const compDigits = companyPhones.map((p) => p.replace(/\D/g, "").slice(-10)).filter((d) => d.length === 10);
+      if (rowDigits.some((d) => compDigits.includes(d))) return true;
+
+      // 2. Email match
+      if (rowEmails.some((e) => companyEmails.includes(e))) return true;
+
+      // 3. Company name match (same name and compatible state/city)
+      if (rowNameKey && c.name_key === rowNameKey) {
+        if (rowState && cState && rowState !== cState) return false;
+        if (rowCity && cCity && rowCity !== cCity) return false;
+        return true;
+      }
+
+      return false;
+    });
+
     return hit ? { companyId: hit.id, leadId: hit.lead_id } : null;
   };
 }

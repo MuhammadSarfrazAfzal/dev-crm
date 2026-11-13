@@ -134,12 +134,24 @@ export function inferStateFromLocation(city?: string | null, state?: string | nu
   return null;
 }
 
-export function resolveCompanyTimeZone(opts: {
+export type ResolveCompanyTimeZoneOptions = {
   timeZone?: string | null;
   state?: string | null;
   city?: string | null;
   phone?: string | null;
-}): { timeZone: string; state: string | null } {
+};
+
+export type ResolveCompanyTimeZoneResult = {
+  timeZone: string;
+  state: string | null;
+};
+
+/**
+ * Resolves the precise IANA time zone for a company or lead.
+ * Prioritizes inferred US state from city name, explicit state code, or phone area code,
+ * falling back to explicit timeZone or America/New_York default.
+ */
+export function resolveCompanyTimeZone(opts: ResolveCompanyTimeZoneOptions): ResolveCompanyTimeZoneResult {
   const inferredState = inferStateFromLocation(opts.city, opts.state, opts.phone);
   if (inferredState) {
     const stateTz = timeZoneForState(inferredState);

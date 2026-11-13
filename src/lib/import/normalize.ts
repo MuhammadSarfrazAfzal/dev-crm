@@ -56,14 +56,27 @@ export const ISSUE_LABEL: Record<string, string> = {
 // Placeholders some lists print instead of a value.
 const PLACEHOLDER_RE = /^(n\/?a|none|unknown|tbd|-+|\?+)$|not (captured|available|listed|provided)|see source/i;
 
-const clean = (v: string | undefined, max = 300) => {
+/** Sanitizes raw cell values by trimming whitespace and filtering out common placeholders. */
+const clean = (v: string | undefined, max = 300): string | null => {
   const s = (v ?? "").replace(/\s+/g, " ").trim();
   return s && !PLACEHOLDER_RE.test(s) ? s.slice(0, max) : null;
 };
 
+export type NormalizeRowOptions = {
+  fromText?: boolean;
+  ocrConfidence?: number;
+  structured?: boolean;
+  extraIssues?: string[];
+  companyConfidence?: number;
+};
+
+/**
+ * Normalizes an imported row from parsed columns into standard CRM data formats.
+ * Extracts and validates phone numbers, emails, addresses, state codes, and time zones.
+ */
 export function normalizeRow(
   values: Partial<Record<Field, string>>,
-  opts: { fromText?: boolean; ocrConfidence?: number; structured?: boolean; extraIssues?: string[]; companyConfidence?: number } = {},
+  opts: NormalizeRowOptions = {},
 ): { row: NormalizedRow; issues: string[]; confidence: number } {
   const issues: string[] = [];
   values = splitAddressParts(expandMixed(values));

@@ -168,13 +168,23 @@ export async function recompute(
   await Promise.all(writes);
 }
 
+export type ExistingMatch = {
+  companyId: string;
+  leadId: string | null;
+};
+
+/** Extracts last 10 numerical digits from phone strings for normalized NANP comparisons. */
+function last10Digits(phones: string[]): string[] {
+  return phones.map((p) => p.replace(/\D/g, "").slice(-10)).filter((d) => d.length === 10);
+}
+
 async function findExisting(rows: NormalizedRow[]) {
   const phones = [...new Set(rows.flatMap((r) => r.phones.map((p) => p.e164)).filter(Boolean))];
   const emails = [...new Set(rows.flatMap((r) => r.emails.map((e) => e.address.toLowerCase().trim())).filter(Boolean))];
   const names = [...new Set(rows.map((r) => r.company).filter(Boolean) as string[])];
 
   if (phones.length === 0 && emails.length === 0 && names.length === 0) {
-    return (_row: NormalizedRow) => null;
+    return (_row: NormalizedRow): ExistingMatch | null => null;
   }
 
   const found = await asService(
@@ -226,7 +236,7 @@ async function findExisting(rows: NormalizedRow[]) {
   const nameKey = (s: string) =>
     s.toLowerCase().replace(/\b(inc|llc|l\.l\.c|ltd|co|corp|corporation|company)\b\.?/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 
-  return (row: NormalizedRow): { companyId: string; leadId: string | null } | null => {
+  return (row: NormalizedRow): ExistingMatch | null => {
     const rowPhones = row.phones.map((p) => p.e164).filter(Boolean);
     const rowEmails = row.emails.map((e) => e.address.toLowerCase().trim()).filter(Boolean);
     const rowNameKey = row.company ? nameKey(row.company) : null;
@@ -241,8 +251,8 @@ async function findExisting(rows: NormalizedRow[]) {
 
       // 1. Exact phone match (e164 or last 10 digits)
       if (rowPhones.some((p) => companyPhones.includes(p))) return true;
-      const rowDigits = rowPhones.map((p) => p.replace(/\D/g, "").slice(-10)).filter((d) => d.length === 10);
-      const compDigits = companyPhones.map((p) => p.replace(/\D/g, "").slice(-10)).filter((d) => d.length === 10);
+      const rowDigits = last10Digits(rowPhones);
+      const compDigits = last10Digits(companyPhones);
       if (rowDigits.some((d) => compDigits.includes(d))) return true;
 
       // 2. Email match

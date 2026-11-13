@@ -227,7 +227,15 @@ export function withinLegalWindow(date: Date, timeZone: string, state?: string |
 // Follow-up quick picks
 // ---------------------------------------------------------------------------
 
-function addLocalDays(timeZone: string, now: Date, days: number) {
+export type LocalDaysResult = {
+  y: number;
+  m: number;
+  d: number;
+  weekday: number;
+};
+
+/** Adds calendar days in the target time zone, keeping local calendar math accurate across DST boundaries. */
+function addLocalDays(timeZone: string, now: Date, days: number): LocalDaysResult {
   const w = wallClock(now, timeZone);
   const d = new Date(Date.UTC(w.year, w.month - 1, w.day + days));
   return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate(), weekday: d.getUTCDay() };
